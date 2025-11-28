@@ -1,0 +1,108 @@
+import express, { Application, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { testConnection } from './config/database';
+
+// Load environment variables
+dotenv.config();
+
+// Create Express application
+const app: Application = express();
+
+// Configuration
+const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Middleware
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Health check route
+app.get('/api/health', async (req: Request, res: Response) => {
+  try {
+    const dbStatus = await testConnection();
+    
+    res.status(200).json({
+      status: 'OK',
+      message: 'Sydney Learning Platform API is running',
+      timestamp: new Date().toISOString(),
+      database: dbStatus ? 'connected' : 'disconnected',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Health check failed',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  }
+});
+
+// Basic API info route
+app.get('/api', (req: Request, res: Response) => {
+  res.json({
+    name: 'Sydney Learning Platform API',
+    version: '1.0.0',
+    description: 'Backend API for adaptive learning platform',
+    endpoints: {
+      health: '/api/health',
+      docs: '/api/docs (coming soon)'
+    }
+  });
+});
+
+// 404 handler for unmatched routes
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    status: 'NOT_FOUND',
+    message: `Route ${req.originalUrl} not found`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Global error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('❌ Error:', err);
+  
+  res.status(err.status || 500).json({
+    status: 'ERROR',
+    message: err.message || 'Internal server error',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// Start server
+const startServer = async () => {
+  try {
+    // Test database connection on startup
+    console.log('🔄 Testing database connection...');
+    await testConnection();
+    
+    // Start listening
+    app.listen(PORT, () => {
+      console.log('🚀 Sydney Learning Platform API started');
+      console.log(`📡 Server running on port ${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
+      console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
+
+export default app;
