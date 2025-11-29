@@ -1,4 +1,6 @@
 import { Pool, PoolConfig } from 'pg';
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -25,13 +27,154 @@ export const testConnection = async (): Promise<boolean> => {
     const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
     client.release();
-    console.log('✅ Database connected successfully at:', result.rows[0].now);
+    console.log('✅ Database connected successfully');
+    console.log(`📊 Database: ${dbConfig.database} at ${dbConfig.host}:${dbConfig.port}`);
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     return false;
   }
 };
+
+// Run SQL migration files
+export async function runMigration(migrationFile: string): Promise<boolean> {
+  try {
+    const migrationPath = path.join(process.cwd(), '..', 'database', 'migrations', migrationFile);
+    
+    if (!fs.existsSync(migrationPath)) {
+      throw new Error(`Migration file not found: ${migrationPath}`);
+    }
+
+    const sql = fs.readFileSync(migrationPath, 'utf8');
+    const client = await pool.connect();
+    
+    console.log(`🔄 Running migration: ${migrationFile}`);
+    await client.query(sql);
+    client.release();
+    
+    console.log(`✅ Migration completed: ${migrationFile}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Migration failed for ${migrationFile}:`, error);
+    return false;
+  }
+}
+
+// Run seed files
+export async function runSeed(seedFile: string): Promise<boolean> {
+  try {
+    const seedPath = path.join(process.cwd(), '..', 'database', 'seeds', seedFile);
+    
+    if (!fs.existsSync(seedPath)) {
+      throw new Error(`Seed file not found: ${seedPath}`);
+    }
+
+    const sql = fs.readFileSync(seedPath, 'utf8');
+    const client = await pool.connect();
+    
+    console.log(`🌱 Running seed: ${seedFile}`);
+    await client.query(sql);
+    client.release();
+    
+    console.log(`✅ Seed completed: ${seedFile}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Seed failed for ${seedFile}:`, error);
+    return false;
+  }
+}
+
+// Check if database is initialized (has tables)
+export async function isDatabaseInitialized(): Promise<boolean> {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`
+      SELECT COUNT(*) as table_count 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name IN ('users', 'questions', 'player_ratings', 'quiz_sessions', 'question_attempts')
+    `);
+    client.release();
+    
+    const tableCount = parseInt(result.rows[0].table_count);
+    return tableCount === 5;
+  } catch (error) {
+    console.error('❌ Error checking database initialization:', error);
+    return false;
+  }
+}
+
+// Initialize database with schema if empty
+export async function initializeDatabase(): Promise<boolean> {
+  try {
+    const isInitialized = await isDatabaseInitialized();
+    
+    if (isInitialized) {
+      console.log('✅ Database already initialized');
+      return true;
+    }
+
+    console.log('🔄 Initializing database schema...');
+    
+    // Run initial migration
+    const migrationSuccess = await runMigration('001_initial_schema.sql');
+    if (!migrationSuccess) {
+      throw new Error('Failed to run initial migration');
+    }
+
+    console.log('✅ Database initialization completed');
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    return false;
+  }
+}
+
+// Run all pending migrations
+export async function runAllMigrations(): Promise<boolean> {
+  try {
+    const migrationsDir = path.join(process.cwd(), '..', 'database', 'migrations');
+    
+    if (!fs.existsSync(migrationsDir)) {
+      console.log('📁 No migrations directory found');
+      return true;
+    }
+
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort();
+
+    if (migrationFiles.length === 0) {
+      console.log('📁 No migration files found');
+      return true;
+    }
+
+    console.log(`🔄 Found ${migrationFiles.length} migration(s)`);
+
+    for (const file of migrationFiles) {
+      const success = await runMigration(file);
+      if (!success) {
+        throw new Error(`Migration failed: ${file}`);
+      }
+    }
+
+    console.log('✅ All migrations completed successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Migration process failed:', error);
+    return false;
+  }
+}
+
+// Graceful shutdown
+export async function closePool(): Promise<void> {
+  try {
+    await pool.end();
+    console.log('✅ Database connection pool closed');
+  } catch (error) {
+    console.error('❌ Error closing database pool:', error);
+  }
+}
 
 // Export the pool for use in other modules
 export default pool;

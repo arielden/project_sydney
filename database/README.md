@@ -1,168 +1,161 @@
-# Sydney Learning Platform - Database Setup
+# Sydney SAT Learning Platform - Database Schema
 
-This directory contains database configuration and initialization files for the Sydney Adaptive Learning Platform.
+## Overview
 
-## Prerequisites
+The Sydney database schema is designed to support an adaptive learning platform with ELO rating system for SAT math preparation. The system tracks user progress, question performance, and dynamically adjusts difficulty based on student ability.
 
-- Docker and Docker Compose installed
-- PostgreSQL client (optional, for direct database access)
+## Core Tables
 
-## Quick Start
+### Users Table
+**Purpose**: User account management and profile information
+- **Primary Key**: UUID `id`
+- **Unique Fields**: `email`, `username`
+- **Key Features**: Account status tracking, login timestamps
+- **Relationships**: One-to-one with `player_ratings`, one-to-many with `quiz_sessions` and `question_attempts`
 
-### 1. Start the Database Containers
+### Player_Ratings Table
+**Purpose**: ELO rating system for player skill tracking
+- **Primary Key**: UUID `id`
+- **Foreign Key**: `user_id` → `users(id)`
+- **Key Metrics**: `overall_elo`, `k_factor`, `games_played`
+- **ELO System**: Starting at 1200, K-factor of 100 for new players
 
-```bash
-# Start PostgreSQL and pgAdmin containers
-docker-compose up -d
+### Questions Table
+**Purpose**: SAT math question repository with difficulty ratings
+- **Primary Key**: UUID `id`
+- **Key Features**: Question variations via `stem_id`, performance tracking
+- **JSONB Storage**: Answer options stored as flexible JSON
+- **Difficulty System**: ELO-based question ratings (800-2000 range)
 
-# Check if containers are running
-docker-compose ps
+### Quiz_Sessions Table
+**Purpose**: Track practice sessions with timing and pause functionality
+- **Primary Key**: UUID `id`
+- **Foreign Key**: `user_id` → `users(id)`
+- **Session Types**: practice, diagnostic, timed
+- **Timing**: Start/end times, pause tracking, duration calculations
+
+### Question_Attempts Table
+**Purpose**: Record individual question attempts with rating changes
+- **Primary Key**: UUID `id`
+- **Foreign Keys**: `session_id`, `question_id`, `user_id`
+- **Rating Tracking**: Before/after ratings for both player and question
+- **Performance**: Correctness, time spent, timestamp
+
+## Entity Relationship Diagram
+
+```
+┌─────────────────┐       ┌──────────────────┐
+│     USERS       │──────▶│  PLAYER_RATINGS  │
+│                 │ 1:1   │                  │
+│ • id (PK)       │       │ • id (PK)        │
+│ • email (UQ)    │       │ • user_id (FK)   │
+│ • username (UQ) │       │ • overall_elo    │
+│ • password_hash │       │ • k_factor       │
+│ • first_name    │       │ • games_played   │
+│ • last_name     │       └──────────────────┘
+│ • created_at    │
+│ • updated_at    │
+│ • last_login    │       ┌──────────────────┐
+│ • is_active     │──────▶│  QUIZ_SESSIONS   │
+└─────────────────┘ 1:M   │                  │
+                          │ • id (PK)        │
+                          │ • user_id (FK)   │
+                          │ • session_type   │
+                          │ • start_time     │
+                          │ • end_time       │
+                          │ • is_paused      │
+                          │ • status         │
+                          └─────────┬────────┘
+                                    │ 1:M
+┌─────────────────┐                 ▼
+│   QUESTIONS     │       ┌──────────────────┐
+│                 │──────▶│ QUESTION_ATTEMPTS│
+│ • id (PK)       │ 1:M   │                  │
+│ • question_type │       │ • id (PK)        │
+│ • question_text │       │ • session_id (FK)│
+│ • options (JSON)│       │ • question_id(FK)│
+│ • correct_answer│       │ • user_id (FK)   │
+│ • explanation   │       │ • user_answer    │
+│ • difficulty_rating     │ • is_correct     │
+│ • stem_id (FK)  │       │ • time_spent     │
+│ • clone_number  │       │ • player_rating_ │
+│ • times_answered│       │   before/after   │
+│ • times_correct │       │ • question_rating│
+│ • is_diagnostic │       │   before/after   │
+└─────────┬───────┘       │ • answered_at    │
+          │               └──────────────────┘
+          │ (self-reference)
+          └─────────────────┐
+                           ▼
+                    ┌──────────────┐
+                    │  QUESTIONS   │
+                    │ (variations) │
+                    │ stem_id → id │
+                    └──────────────┘
 ```
 
-### 2. Verify PostgreSQL is Running
+## ELO Rating System
 
-```bash
-# Check PostgreSQL health
-docker-compose exec postgres pg_isready -U admin -d sydney_db
+### Core Principles
+- **Initial Rating**: 1200 for both players and questions
+- **K-Factor**: 100 for new players, adjusts based on experience
+- **Rating Range**: 800-2000 for practical SAT difficulty levels
+- **Bidirectional**: Both player and question ratings update after each attempt
 
-# View container logs
-docker logs sydney_postgres
+### Rating Calculation Formula
+```
+Expected Score = 1 / (1 + 10^((Rating_B - Rating_A) / 400))
+New Rating = Old Rating + K * (Actual Score - Expected Score)
 ```
 
-### 3. Access the Database
+## Database Operations
 
-#### Option A: Using pgAdmin (Web Interface)
+### Running Migrations
+```bash
+# Navigate to backend directory
+cd backend
+
+# Run all migrations
+npm run db:migrate
+
+# Run specific migration
+npm run migration -- 001_initial_schema.sql
+```
+
+### Seeding Data
+```bash
+# Seed question types
+npm run db:seed
+
+# Seed specific file
+npm run seed -- seed_question_types.sql
+```
+
+### Development Reset
+```bash
+# Reset database (development only)
+npm run db:reset
+```
+
+## Quick Database Access
+
+### Using pgAdmin (Web Interface)
 1. Open browser to `http://localhost:5050`
-2. Login with:
-   - Email: `admin@sydney.com`
-   - Password: `admin123`
-3. Add new server connection:
-   - Name: `Sydney DB`
-   - Host: `postgres` (container name)
-   - Port: `5432`
-   - Username: `admin`
-   - Password: `admin123`
-   - Database: `sydney_db`
+2. Login: `admin@sydney.com` / `admin123`
+3. Connect to server: `postgres:5432`
 
-#### Option B: Using psql (Command Line)
+### Using psql (Command Line)
 ```bash
-# Connect directly to PostgreSQL container
+# Connect via Docker
 docker-compose exec postgres psql -U admin -d sydney_db
 
-# Or connect from host machine (if psql installed)
+# Connect from host
 psql -h localhost -p 5432 -U admin -d sydney_db
 ```
 
-#### Option C: Using External Client (DBeaver, TablePlus, etc.)
-- Host: `localhost`
-- Port: `5432`
-- Database: `sydney_db`
-- Username: `admin`
-- Password: `admin123`
+---
 
-## Database Configuration
-
-### Environment Variables
-Database settings are configured in `.env` file:
-
-```env
-POSTGRES_DB=sydney_db
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=admin123
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql://admin:admin123@localhost:5432/sydney_db
-```
-
-### Data Persistence
-- Database data is persisted in Docker volume `postgres_data`
-- Data survives container restarts and recreations
-- To reset database: `docker-compose down -v` (WARNING: destroys all data)
-
-## Common Commands
-
-### Container Management
-```bash
-# Start containers in background
-docker-compose up -d
-
-# Stop containers
-docker-compose down
-
-# View logs
-docker-compose logs postgres
-docker-compose logs pgadmin
-
-# Restart specific service
-docker-compose restart postgres
-
-# Remove everything including volumes (DANGER!)
-docker-compose down -v
-```
-
-### Database Operations
-```bash
-# Create database backup
-docker-compose exec postgres pg_dump -U admin sydney_db > backup.sql
-
-# Restore database backup
-docker-compose exec -T postgres psql -U admin -d sydney_db < backup.sql
-
-# Run SQL file
-docker-compose exec -T postgres psql -U admin -d sydney_db < your_file.sql
-```
-
-## Troubleshooting
-
-### Container Won't Start
-```bash
-# Check container status
-docker-compose ps
-
-# View detailed logs
-docker-compose logs postgres
-
-# Check if port is already in use
-lsof -i :5432  # On Mac/Linux
-netstat -ano | findstr :5432  # On Windows
-```
-
-### Can't Connect to Database
-1. Ensure containers are running: `docker-compose ps`
-2. Check PostgreSQL health: `docker-compose exec postgres pg_isready`
-3. Verify environment variables in `.env` file
-4. Check if firewall is blocking port 5432
-
-### Reset Everything
-```bash
-# Stop and remove all containers and volumes
-docker-compose down -v
-
-# Remove any orphaned containers
-docker container prune
-
-# Start fresh
-docker-compose up -d
-```
-
-## Security Notes
-
-⚠️ **Development Only**: Current credentials are for development only!
-
-- Username: `admin`
-- Password: `admin123`
-- Database: `sydney_db`
-
-**For production deployment:**
-- Use strong, unique passwords
-- Configure SSL/TLS connections
-- Implement proper user roles and permissions
-- Use secrets management
-- Enable audit logging
-
-## Next Steps
-
-Once the database is running:
-1. Database schema will be added in future development steps
-2. User authentication tables
-3. Quiz and learning content tables
-4. Analytics and progress tracking tables
+**Database Version**: 1.0.0  
+**Schema Version**: 001_initial_schema  
+**Last Updated**: November 29, 2024  
+**Compatibility**: PostgreSQL 12+

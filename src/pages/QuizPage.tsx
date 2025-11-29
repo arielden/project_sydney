@@ -31,7 +31,7 @@ export default function QuizPage({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-800 text-white px-4 py-3 shadow-lg">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-blue-primary text-white px-4 py-3 shadow-lg">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Left: Section Title */}
           <div className="flex-1">
@@ -47,20 +47,20 @@ export default function QuizPage({
           
           {/* Right: Action Icons */}
           <div className="flex-1 flex justify-end space-x-4">
-            <button className="p-2 hover:bg-slate-700 rounded transition-colors">
+            <button className="p-2 hover:bg-blue-dark rounded transition-colors">
               <Calculator className="w-5 h-5" />
             </button>
-            <button className="p-2 hover:bg-slate-700 rounded transition-colors">
+            <button className="p-2 hover:bg-blue-dark rounded transition-colors">
               <BookOpen className="w-5 h-5" />
             </button>
-            <button className="p-2 hover:bg-slate-700 rounded transition-colors">
+            <button className="p-2 hover:bg-blue-dark rounded transition-colors">
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
         </div>
         
         {/* Practice Test Banner */}
-        <div className="bg-slate-700 text-center py-2 mt-2 rounded">
+        <div className="bg-blue-dark text-center py-2 mt-2 rounded">
           <span className="text-sm font-medium">{questionType}</span>
         </div>
       </header>
@@ -71,7 +71,7 @@ export default function QuizPage({
           {/* Question Header */}
           <div className="flex items-center justify-between mb-6">
             {/* Question Number Badge */}
-            <div className="bg-slate-800 text-white w-10 h-10 rounded flex items-center justify-center font-bold text-lg">
+            <div className="bg-blue-primary text-white w-10 h-10 rounded flex items-center justify-center font-bold text-lg">
               {questionNumber}
             </div>
             
@@ -106,7 +106,7 @@ export default function QuizPage({
               {options.map((option) => (
                 <label 
                   key={option.id}
-                  className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                  className="flex items-center p-4 border-2 border-gray-200 rounded-lg hover:border-blue-primary hover:bg-blue-light/20 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center space-x-4 w-full">
                     {/* Option Letter Circle */}
@@ -119,7 +119,7 @@ export default function QuizPage({
                       type="radio" 
                       name="answer" 
                       value={option.id}
-                      className="w-5 h-5 text-blue-600"
+                      className="w-5 h-5 text-blue-primary"
                     />
                     
                     {/* Option Text */}
@@ -144,17 +144,17 @@ export default function QuizPage({
           
           {/* Center: Question Counter */}
           <div className="flex-1 text-center">
-            <span className="bg-slate-800 text-white px-4 py-2 rounded text-sm font-medium">
+            <span className="bg-blue-primary text-white px-4 py-2 rounded text-sm font-medium">
               Question {questionNumber} of {totalQuestions}
             </span>
           </div>
           
           {/* Right: Navigation Buttons */}
           <div className="flex-1 flex justify-end space-x-3">
-            <button className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium">
+            <button className="px-6 py-2 bg-blue-primary text-white rounded hover:bg-blue-dark transition-colors font-medium">
               Back
             </button>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium">
+            <button className="px-6 py-2 bg-blue-primary text-white rounded hover:bg-blue-dark transition-colors font-medium">
               Next
             </button>
           </div>
