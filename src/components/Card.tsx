@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface CardProps {
   title: string;
@@ -8,6 +9,7 @@ interface CardProps {
   backgroundColor?: 'cream' | 'purple-light' | 'rose-light';
   iconText?: string;
   isExternal?: boolean;
+  disabled?: boolean;
 }
 
 const Card = ({ 
@@ -17,7 +19,8 @@ const Card = ({
   link, 
   backgroundColor = 'cream',
   iconText,
-  isExternal = false 
+  isExternal = false,
+  disabled = false
 }: CardProps) => {
   const getBackgroundClass = () => {
     switch (backgroundColor) {
@@ -33,9 +36,9 @@ const Card = ({
   const CardContent = () => (
     <div className={`
       ${getBackgroundClass()} 
-      p-6 rounded-xl shadow-card hover:shadow-card-hover 
-      transition-all duration-300 transform hover:-translate-y-1
+      p-6 rounded-xl shadow-card transition-all duration-300
       border border-gray-100 h-full flex flex-col
+      ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-card-hover transform hover:-translate-y-1'}
     `}>
       {/* Icon Section */}
       <div className="flex items-center justify-between mb-4">
@@ -60,16 +63,27 @@ const Card = ({
     </div>
   );
 
-  if (link) {
+  if (link && !disabled) {
+    if (isExternal) {
+      return (
+        <a 
+          href={link} 
+          className="group block h-full"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <CardContent />
+        </a>
+      );
+    }
+    
     return (
-      <a 
-        href={link} 
+      <Link 
+        to={link} 
         className="group block h-full"
-        target={isExternal ? "_blank" : undefined}
-        rel={isExternal ? "noopener noreferrer" : undefined}
       >
         <CardContent />
-      </a>
+      </Link>
     );
   }
 

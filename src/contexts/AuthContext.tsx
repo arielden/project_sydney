@@ -155,6 +155,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           } catch (error) {
             // Token verification failed, clear storage
+            console.warn('Token verification failed during initialization:', error);
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             dispatch({ type: 'LOGOUT' });
@@ -168,7 +169,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    initializeAuth();
+    initializeAuth().catch((error) => {
+      console.error('Uncaught error in auth initialization:', error);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    });
   }, []);
 
   // Login function
@@ -239,21 +243,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Logout function
   const logout = useCallback((): void => {
-    try {
-      // Call logout API (optional, for future features like token blacklisting)
-      authAPI.logout().catch(error => {
-        console.warn('Logout API call failed:', error);
-      });
-    } catch (error) {
-      console.warn('Logout API call failed:', error);
-    }
-
-    // Clear localStorage
+    // Clear localStorage first
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     
     // Update state
     dispatch({ type: 'LOGOUT' });
+
+    // Call logout API (optional, for future features like token blacklisting)
+    // Do this after state update to prevent any timing issues
+    authAPI.logout().catch(error => {
+      console.warn('Logout API call failed (non-critical):', error);
+    });
   }, []);
 
   // Clear error function
@@ -270,9 +271,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           type: 'UPDATE_USER',
           payload: response.data.user,
         });
+      } else {
+        console.warn('Auth check failed: Invalid response');
+        logout();
       }
     } catch (error) {
       // Auth check failed, logout
+      console.warn('Auth check failed:', error);
       logout();
     }
   }, [logout]);

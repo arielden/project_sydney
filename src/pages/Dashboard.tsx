@@ -60,7 +60,7 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Continue Practice</h2>
             <p className="text-gray-600 mb-6">Resume your adaptive learning session</p>
             <Link 
-              to="/quiz" 
+              to="/quiz/start" 
               className="inline-flex items-center px-6 py-3 bg-blue-primary text-white rounded-lg hover:bg-blue-dark transition-colors font-medium"
             >
               Start Practice

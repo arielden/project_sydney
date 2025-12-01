@@ -77,7 +77,10 @@ api.interceptors.response.use(
       
       // Redirect to login if not already there
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login';
+        // Use setTimeout to prevent immediate navigation issues
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
       }
     }
     
@@ -114,6 +117,18 @@ export const authAPI = {
   // Logout user
   logout: async (): Promise<ApiResponse> => {
     const response = await api.post('/auth/logout');
+    return response.data;
+  },
+
+  // Generic GET method for quiz endpoints
+  get: async (url: string): Promise<ApiResponse> => {
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  // Generic POST method for quiz endpoints
+  post: async (url: string, data?: any): Promise<ApiResponse> => {
+    const response = await api.post(url, data);
     return response.data;
   },
 };

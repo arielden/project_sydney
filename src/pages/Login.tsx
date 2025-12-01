@@ -27,7 +27,11 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      // Add a small delay to prevent navigation conflicts
+      const timer = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, navigate, from]);
 
@@ -60,7 +64,8 @@ export default function Login() {
       await login(formData.email, formData.password);
       // Navigation will be handled by the useEffect above
     } catch (error) {
-      // Error is handled by the auth context
+      // Error is handled by the auth context, but log for debugging
+      console.warn('Login error:', error);
     } finally {
       setIsSubmitting(false);
     }

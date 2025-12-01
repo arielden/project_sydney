@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { testConnection } from './config/database';
 import authRoutes from './routes/auth';
+import quizRoutes from './routes/quiz';
 
 // Load environment variables
 dotenv.config();
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/quiz', quizRoutes);
 
 // Health check route
 app.get('/api/health', async (req: Request, res: Response) => {
@@ -60,6 +62,7 @@ app.get('/api', (req: Request, res: Response) => {
     endpoints: {
       health: '/api/health',
       auth: '/api/auth',
+      quiz: '/api/quiz',
       docs: '/api/docs (coming soon)'
     }
   });
@@ -101,6 +104,7 @@ const startServer = async () => {
       console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
       console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth`);
+      console.log(`🧠 Quiz endpoints: http://localhost:${PORT}/api/quiz`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

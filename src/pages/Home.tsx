@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Users, TrendingUp, Target, ArrowRight } from 'lucide-react';
 import Card from '../components/Card';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Home() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Add padding-top to account for fixed header */}
@@ -65,11 +68,12 @@ export default function Home() {
               {/* Card 1: Adaptive Learning */}
               <Card
                 title="Adaptive Learning"
-                description="Personalized question selection based on your performance. Master 66 question types with intelligent difficulty matching."
+                description={isAuthenticated ? "Feature coming soon! We're working hard to bring you personalized question selection." : "Personalized question selection based on your performance. Master 66 question types with intelligent difficulty matching."}
                 icon={Users}
                 backgroundColor="cream"
-                iconText="4000+ Questions"
-                link="/register"
+                iconText={isAuthenticated ? "Coming Soon" : "4000+ Questions"}
+                link={isAuthenticated ? undefined : "/quiz"}
+                disabled={isAuthenticated}
               />
 
               {/* Card 2: Track Progress */}
@@ -85,12 +89,12 @@ export default function Home() {
               {/* Card 3: Diagnostic Assessment */}
               <Card
                 title="Diagnostic Assessment"
-                description="Take our comprehensive 44-question diagnostic to identify your strengths and areas for improvement."
+                description={isAuthenticated ? "Feature coming soon! We're developing a comprehensive diagnostic assessment for you." : "Take our comprehensive 44-question diagnostic to identify your strengths and areas for improvement."}
                 icon={Target}
                 backgroundColor="rose-light"
-                iconText="Start Diagnostic"
-                link="/quiz"
-                isExternal
+                iconText={isAuthenticated ? "Coming Soon" : "Start Diagnostic"}
+                link={isAuthenticated ? undefined : "/profile"}
+                disabled={isAuthenticated}
               />
             </div>
           </div>

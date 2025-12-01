@@ -46,7 +46,11 @@ export default function Register() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      // Add a small delay to prevent navigation conflicts
+      const timer = setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, navigate, from]);
 
@@ -96,7 +100,8 @@ export default function Register() {
       });
       // Navigation will be handled by the useEffect above
     } catch (error) {
-      // Error is handled by the auth context
+      // Error is handled by the auth context, but log for debugging
+      console.warn('Registration error:', error);
     } finally {
       setIsSubmitting(false);
     }
