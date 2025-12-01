@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-// API response types
+/**
+ * API response interface for all backend responses
+ */
 export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
@@ -8,6 +10,9 @@ export interface ApiResponse<T = any> {
   errors?: string[];
 }
 
+/**
+ * Authenticated user interface
+ */
 export interface AuthUser {
   id: string;
   email: string;
@@ -22,16 +27,25 @@ export interface AuthUser {
   peak_elo?: number;
 }
 
+/**
+ * Authentication response interface
+ */
 export interface AuthResponse {
   user: AuthUser;
   token: string;
 }
 
+/**
+ * Login credentials interface
+ */
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
+/**
+ * User registration data interface
+ */
 export interface RegisterData {
   email: string;
   username: string;
@@ -40,7 +54,10 @@ export interface RegisterData {
   last_name?: string;
 }
 
-// Create axios instance with base configuration
+/**
+ * Configured axios instance with interceptors
+ * Handles authentication tokens and error responses
+ */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   timeout: 10000,
@@ -49,7 +66,9 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add JWT token
+/**
+ * Request interceptor to add JWT token to all requests
+ */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -63,21 +82,23 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+/**
+ * Response interceptor for global error handling
+ */
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    // Handle common error scenarios
+    // Handle 401 Unauthorized errors
     if (error.response?.status === 401) {
-      // Token expired or invalid - remove from storage
+      // Token expired or invalid - clear storage
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       
-      // Redirect to login if not already there
+      // Redirect to login if not already on auth pages
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        // Use setTimeout to prevent immediate navigation issues
+        // Use setTimeout to prevent navigation conflicts
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
@@ -88,54 +109,15 @@ api.interceptors.response.use(
   }
 );
 
-// Authentication API calls
-export const authAPI = {
-  // Register new user
-  register: async (userData: RegisterData): Promise<ApiResponse<AuthResponse>> => {
-    const response = await api.post('/auth/register', userData);
-    return response.data;
-  },
-
-  // Login user
-  login: async (credentials: LoginCredentials): Promise<ApiResponse<AuthResponse>> => {
-    const response = await api.post('/auth/login', credentials);
-    return response.data;
-  },
-
-  // Get current user profile
-  getProfile: async (): Promise<ApiResponse<{ user: AuthUser }>> => {
-    const response = await api.get('/auth/profile');
-    return response.data;
-  },
-
-  // Verify current token
-  verifyAuth: async (): Promise<ApiResponse<{ user: AuthUser }>> => {
-    const response = await api.get('/auth/verify');
-    return response.data;
-  },
-
-  // Logout user
-  logout: async (): Promise<ApiResponse> => {
-    const response = await api.post('/auth/logout');
-    return response.data;
-  },
-
-  // Generic GET method for quiz endpoints
-  get: async (url: string): Promise<ApiResponse> => {
-    const response = await api.get(url);
-    return response.data;
-  },
-
-  // Generic POST method for quiz endpoints
-  post: async (url: string, data?: any): Promise<ApiResponse> => {
-    const response = await api.post(url, data);
-    return response.data;
-  },
-};
-
-// General API helper functions
+/**
+ * API helper functions for error handling and message extraction
+ */
 export const apiHelpers = {
-  // Handle API errors and extract meaningful messages
+  /**
+   * Extract user-friendly error message from API error response
+   * @param error - Axios error object
+   * @returns string - User-friendly error message
+   */
   extractErrorMessage: (error: any): string => {
     if (error.response?.data?.message) {
       return error.response.data.message;
@@ -152,7 +134,11 @@ export const apiHelpers = {
     return 'An unexpected error occurred';
   },
 
-  // Extract all error messages as array
+  /**
+   * Extract all error messages as array
+   * @param error - Axios error object
+   * @returns string[] - Array of error messages
+   */
   extractErrorMessages: (error: any): string[] => {
     if (error.response?.data?.errors?.length > 0) {
       return error.response.data.errors;
@@ -162,27 +148,31 @@ export const apiHelpers = {
     return [message];
   },
 
-  // Check if error is network related
+  /**
+   * Check if error is network-related
+   * @param error - Axios error object
+   * @returns boolean - True if network error
+   */
   isNetworkError: (error: any): boolean => {
     return !error.response && error.request;
   },
 
-  // Check if error is authentication related
+  /**
+   * Check if error is authentication-related
+   * @param error - Axios error object
+   * @returns boolean - True if auth error
+   */
   isAuthError: (error: any): boolean => {
     return error.response?.status === 401 || error.response?.status === 403;
   },
 
-  // Check if error is validation related
+  /**
+   * Check if error is validation-related
+   * @param error - Axios error object
+   * @returns boolean - True if validation error
+   */
   isValidationError: (error: any): boolean => {
     return error.response?.status === 400 && error.response?.data?.errors;
-  },
-};
-
-// Health check API
-export const healthAPI = {
-  check: async (): Promise<any> => {
-    const response = await api.get('/health');
-    return response.data;
   },
 };
 

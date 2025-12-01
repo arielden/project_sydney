@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken, extractTokenFromHeader } from '../utils/auth';
+import { verifyToken, extractTokenFromHeader } from '../utils/helpers';
 import { findUserById, UserResponse } from '../models/User';
 
 // Extend Request interface to include user

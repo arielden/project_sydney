@@ -64,8 +64,7 @@ export default function Login() {
       await login(formData.email, formData.password);
       // Navigation will be handled by the useEffect above
     } catch (error) {
-      // Error is handled by the auth context, but log for debugging
-      console.warn('Login error:', error);
+      // Error is handled by the auth context
     } finally {
       setIsSubmitting(false);
     }

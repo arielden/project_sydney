@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Users, TrendingUp, Target, ArrowRight } from 'lucide-react';
-import Card from '../components/Card';
+import Card from '../components/common/Card';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Home() {

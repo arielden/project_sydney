@@ -1,6 +1,7 @@
 import pool from '../config/database';
 import { QueryResult } from 'pg';
 
+/** User interface with all database fields */
 export interface User {
   id: string;
   email: string;
@@ -14,6 +15,7 @@ export interface User {
   is_active: boolean;
 }
 
+/** Data required to create a new user */
 export interface CreateUserData {
   email: string;
   username: string;
@@ -22,6 +24,7 @@ export interface CreateUserData {
   last_name?: string;
 }
 
+/** User response interface (excludes sensitive fields like password_hash) */
 export interface UserResponse {
   id: string;
   email: string;
@@ -34,7 +37,12 @@ export interface UserResponse {
   is_active: boolean;
 }
 
-// Create a new user account
+/**
+ * Create a new user account in the database
+ * @param userData - User registration data
+ * @returns Promise<UserResponse> - Created user without password hash
+ * @throws Error if email/username already exists or creation fails
+ */
 export async function createUser(userData: CreateUserData): Promise<UserResponse> {
   try {
     const query = `
@@ -71,7 +79,12 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
   }
 }
 
-// Find user by email for login
+/**
+ * Find user by email address for login authentication
+ * @param email - User's email address
+ * @returns Promise<User | null> - User with password hash or null if not found
+ * @throws Error if database query fails
+ */
 export async function findUserByEmail(email: string): Promise<User | null> {
   try {
     const query = `
@@ -93,7 +106,12 @@ export async function findUserByEmail(email: string): Promise<User | null> {
   }
 }
 
-// Find user by ID (for JWT verification)
+/**
+ * Find user by ID for JWT token verification
+ * @param id - User's unique identifier
+ * @returns Promise<UserResponse | null> - User without password hash or null if not found
+ * @throws Error if database query fails
+ */
 export async function findUserById(id: string): Promise<UserResponse | null> {
   try {
     const query = `
@@ -115,7 +133,12 @@ export async function findUserById(id: string): Promise<UserResponse | null> {
   }
 }
 
-// Update user's last login timestamp
+/**
+ * Update user's last login timestamp to current time
+ * @param userId - User's unique identifier
+ * @returns Promise<void>
+ * @throws Error if update fails
+ */
 export async function updateLastLogin(userId: string): Promise<void> {
   try {
     const query = `
@@ -130,7 +153,12 @@ export async function updateLastLogin(userId: string): Promise<void> {
   }
 }
 
-// Check if email exists
+/**
+ * Check if an email address is already registered
+ * @param email - Email address to check
+ * @returns Promise<boolean> - True if email exists
+ * @throws Error if database query fails
+ */
 export async function emailExists(email: string): Promise<boolean> {
   try {
     const query = `SELECT 1 FROM users WHERE email = $1 LIMIT 1`;
@@ -141,7 +169,12 @@ export async function emailExists(email: string): Promise<boolean> {
   }
 }
 
-// Check if username exists
+/**
+ * Check if a username is already taken
+ * @param username - Username to check
+ * @returns Promise<boolean> - True if username exists
+ * @throws Error if database query fails
+ */
 export async function usernameExists(username: string): Promise<boolean> {
   try {
     const query = `SELECT 1 FROM users WHERE username = $1 LIMIT 1`;
@@ -152,7 +185,12 @@ export async function usernameExists(username: string): Promise<boolean> {
   }
 }
 
-// Create initial player rating for new user
+/**
+ * Create initial player rating for a new user
+ * @param userId - User's unique identifier
+ * @returns Promise<void>
+ * @private Internal function, doesn't throw to avoid breaking user creation
+ */
 async function createInitialPlayerRating(userId: string): Promise<void> {
   try {
     const query = `

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import { authAPI } from '../utils/api';
+import { quizService } from '../services/quizService';
 
 // Types
 export interface Question {
@@ -246,24 +246,20 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.post('/quiz/start', {
-        sessionType: config.sessionType || 'practice',
-        forceNew: config.forceNew || false
-      });
+      const result = await quizService.startQuizSession(
+        config.sessionType || 'practice',
+        config.forceNew || false
+      );
       
-      if (response.success) {
-        dispatch({
-          type: 'START_QUIZ_SUCCESS',
-          payload: {
-            session: response.data.session,
-            question: response.data.question,
-            totalQuestions: response.data.totalQuestions
-          }
-        });
-        return response.data.session.id; // Return session ID
-      } else {
-        throw new Error(response.message || 'Failed to start quiz');
-      }
+      dispatch({
+        type: 'START_QUIZ_SUCCESS',
+        payload: {
+          session: result.session,
+          question: result.question,
+          totalQuestions: result.totalQuestions
+        }
+      });
+      return result.session.id; // Return session ID
     } catch (error: any) {
       console.error('Error starting quiz:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to start quiz' });
@@ -283,7 +279,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       // Abandon the session
-      await authAPI.post(`/quiz/${state.currentSession.id}/abandon`);
+      await quizService.abandonQuizSession(state.currentSession.id);
       
       // Reset the quiz state
       dispatch({ type: 'RESET_QUIZ' });
@@ -305,26 +301,22 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.post(`/quiz/${state.currentSession.id}/answer`, {
+      const result = await quizService.submitAnswer(
+        state.currentSession.id,
+        state.currentQuestion.id,
+        userAnswer,
+        state.timeElapsed
+      );
+      
+      const answer: QuizAnswer = {
         questionId: state.currentQuestion.id,
         userAnswer,
+        isCorrect: result.isCorrect,
         timeSpent: state.timeElapsed,
-        markedForReview
-      });
+        questionNumber: state.questionNumber
+      };
       
-      if (response.success) {
-        const answer: QuizAnswer = {
-          questionId: state.currentQuestion.id,
-          userAnswer,
-          isCorrect: response.data.isCorrect,
-          timeSpent: state.timeElapsed,
-          questionNumber: state.questionNumber
-        };
-        
-        dispatch({ type: 'SUBMIT_ANSWER', payload: answer });
-      } else {
-        throw new Error(response.message || 'Failed to submit answer');
-      }
+      dispatch({ type: 'SUBMIT_ANSWER', payload: answer });
     } catch (error: any) {
       console.error('Error submitting answer:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to submit answer' });
@@ -343,19 +335,15 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.get(`/quiz/${state.currentSession.id}/next`);
+      const result = await quizService.getNextQuestion(state.currentSession.id);
       
-      if (response.success) {
-        if (response.data.completed) {
-          // No more questions, quiz is completed
-          dispatch({ type: 'NO_MORE_QUESTIONS' });
-        } else if (response.data.question) {
-          dispatch({ type: 'LOAD_QUESTION', payload: response.data.question });
-        } else {
-          throw new Error('Invalid response format');
-        }
+      if (result.completed) {
+        // No more questions, quiz is completed
+        dispatch({ type: 'NO_MORE_QUESTIONS' });
+      } else if (result.question) {
+        dispatch({ type: 'LOAD_QUESTION', payload: result.question });
       } else {
-        throw new Error(response.message || 'Failed to get next question');
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
       console.error('Error getting next question:', error);
@@ -370,13 +358,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No active quiz session');
       }
       
-      const response = await authAPI.post(`/quiz/${state.currentSession.id}/pause`);
-      
-      if (response.success) {
-        dispatch({ type: 'PAUSE_QUIZ' });
-      } else {
-        throw new Error(response.message || 'Failed to pause quiz');
-      }
+      await quizService.pauseQuizSession(state.currentSession.id);
+      dispatch({ type: 'PAUSE_QUIZ' });
     } catch (error: any) {
       console.error('Error pausing quiz:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to pause quiz' });
@@ -390,13 +373,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No active quiz session');
       }
       
-      const response = await authAPI.post(`/quiz/${state.currentSession.id}/resume`);
-      
-      if (response.success) {
-        dispatch({ type: 'RESUME_QUIZ' });
-      } else {
-        throw new Error(response.message || 'Failed to resume quiz');
-      }
+      await quizService.resumeQuizSession(state.currentSession.id);
+      dispatch({ type: 'RESUME_QUIZ' });
     } catch (error: any) {
       console.error('Error resuming quiz:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to resume quiz' });
@@ -412,19 +390,15 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.post(`/quiz/${state.currentSession.id}/complete`);
+      const result = await quizService.completeQuizSession(state.currentSession.id);
       
-      if (response.success) {
-        dispatch({
-          type: 'COMPLETE_QUIZ',
-          payload: {
-            session: response.data.session,
-            score: response.data.score
-          }
-        });
-      } else {
-        throw new Error(response.message || 'Failed to complete quiz');
-      }
+      dispatch({
+        type: 'COMPLETE_QUIZ',
+        payload: {
+          session: { ...state.currentSession, status: 'completed' },
+          score: result.score || {}
+        }
+      });
     } catch (error: any) {
       console.error('Error completing quiz:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to complete quiz' });
@@ -440,21 +414,17 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.get(`/quiz/${state.currentSession.id}/next`);
+      const result = await quizService.getNextQuestion(state.currentSession.id);
       
-      if (response.success) {
-        if (response.data.completed) {
-          // No more questions, quiz is completed
-          dispatch({ type: 'NO_MORE_QUESTIONS' });
-          return false;
-        } else if (response.data.question) {
-          dispatch({ type: 'LOAD_QUESTION', payload: response.data.question });
-          return true;
-        } else {
-          throw new Error('Invalid response format');
-        }
+      if (result.completed) {
+        // No more questions, quiz is completed
+        dispatch({ type: 'NO_MORE_QUESTIONS' });
+        return false;
+      } else if (result.question) {
+        dispatch({ type: 'LOAD_QUESTION', payload: result.question });
+        return true;
       } else {
-        throw new Error(response.message || 'Failed to get next question');
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
       console.error('Error getting next question:', error);
@@ -468,14 +438,10 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const response = await authAPI.get(`/quiz/${sessionId}/results`);
+      const results = await quizService.getQuizResults(sessionId);
       
-      if (response.success) {
-        dispatch({ type: 'LOAD_QUIZ_RESULTS', payload: response.data });
-        return response.data; // Return the results data
-      } else {
-        throw new Error(response.message || 'Failed to get quiz results');
-      }
+      dispatch({ type: 'LOAD_QUIZ_RESULTS', payload: results });
+      return results; // Return the results data
     } catch (error: any) {
       console.error('Error getting quiz results:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to get quiz results' });

@@ -100,8 +100,7 @@ export default function Register() {
       });
       // Navigation will be handled by the useEffect above
     } catch (error) {
-      // Error is handled by the auth context, but log for debugging
-      console.warn('Registration error:', error);
+      // Error is handled by the auth context
     } finally {
       setIsSubmitting(false);
     }

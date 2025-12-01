@@ -1,5 +1,6 @@
 import pool from '../config/database';
 
+/** Question database entity interface */
 export interface Question {
   id: string;
   question_type: string;
@@ -17,6 +18,7 @@ export interface Question {
   updated_at: Date;
 }
 
+/** Filters for question queries */
 export interface QuestionFilters {
   questionTypes?: string[];
   minDifficulty?: number;
@@ -25,9 +27,15 @@ export interface QuestionFilters {
   isDiagnostic?: boolean;
 }
 
+/**
+ * Question model for database operations
+ */
 class QuestionModel {
   /**
    * Get random questions with optional filters
+   * @param count - Number of questions to retrieve
+   * @param filters - Optional filters to apply
+   * @returns Promise<Question[]> - Array of questions
    */
   static async getRandomQuestions(
     count: number, 

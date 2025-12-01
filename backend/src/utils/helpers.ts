@@ -21,9 +21,9 @@ export interface TokenPayload {
 }
 
 /**
- * Hash password using bcrypt
- * @param password Plain text password
- * @returns Hashed password
+ * Hash password using bcrypt with high security salt rounds
+ * @param password - Plain text password to hash
+ * @returns Promise<string> - Hashed password
  */
 export async function hashPassword(password: string): Promise<string> {
   try {
@@ -37,9 +37,9 @@ export async function hashPassword(password: string): Promise<string> {
 
 /**
  * Compare plain text password with hashed password
- * @param password Plain text password
- * @param hashedPassword Stored hashed password
- * @returns True if passwords match
+ * @param password - Plain text password to verify
+ * @param hashedPassword - Stored hashed password to compare against
+ * @returns Promise<boolean> - True if passwords match
  */
 export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
   try {
@@ -52,9 +52,9 @@ export async function comparePassword(password: string, hashedPassword: string):
 
 /**
  * Generate JWT token for authenticated user
- * @param userId User ID
- * @param email User email
- * @returns JWT token string
+ * @param userId - User's unique identifier
+ * @param email - User's email address
+ * @returns string - JWT token string
  */
 export function generateToken(userId: string, email: string): string {
   try {
@@ -71,8 +71,9 @@ export function generateToken(userId: string, email: string): string {
 
 /**
  * Verify and decode JWT token
- * @param token JWT token string
- * @returns Decoded token payload
+ * @param token - JWT token string to verify
+ * @returns TokenPayload - Decoded token payload
+ * @throws Error - If token is invalid, expired, or malformed
  */
 export function verifyToken(token: string): TokenPayload {
   try {
@@ -94,8 +95,8 @@ export function verifyToken(token: string): TokenPayload {
 
 /**
  * Extract token from Authorization header
- * @param authHeader Authorization header value
- * @returns Token string or null
+ * @param authHeader - Authorization header value (Bearer <token>)
+ * @returns string | null - Token string or null if invalid format
  */
 export function extractTokenFromHeader(authHeader: string | undefined): string | null {
   if (!authHeader) {
@@ -112,9 +113,9 @@ export function extractTokenFromHeader(authHeader: string | undefined): string |
 }
 
 /**
- * Validate password strength
- * @param password Plain text password
- * @returns Validation result with errors
+ * Validate password strength with comprehensive checks
+ * @param password - Plain text password to validate
+ * @returns Object with validation result and error messages
  */
 export function validatePassword(password: string): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -161,9 +162,9 @@ export function validatePassword(password: string): { isValid: boolean; errors: 
 }
 
 /**
- * Validate email format
- * @param email Email address
- * @returns True if valid email format
+ * Validate email format using regex pattern
+ * @param email - Email address to validate
+ * @returns boolean - True if valid email format
  */
 export function validateEmail(email: string): boolean {
   if (!email || typeof email !== 'string') {
@@ -175,9 +176,9 @@ export function validateEmail(email: string): boolean {
 }
 
 /**
- * Validate username format
- * @param username Username
- * @returns Validation result with errors
+ * Validate username format and constraints
+ * @param username - Username to validate
+ * @returns Object with validation result and error messages
  */
 export function validateUsername(username: string): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -207,4 +208,37 @@ export function validateUsername(username: string): { isValid: boolean; errors: 
     isValid: errors.length === 0,
     errors
   };
+}
+
+/**
+ * Format error response for API endpoints
+ * @param message - Main error message
+ * @param errors - Array of specific error messages
+ * @returns Formatted error response object
+ */
+export function formatErrorResponse(message: string, errors?: string[]) {
+  return {
+    success: false,
+    message,
+    errors: errors || []
+  };
+}
+
+/**
+ * Format success response for API endpoints
+ * @param message - Success message
+ * @param data - Response data
+ * @returns Formatted success response object
+ */
+export function formatSuccessResponse(message: string, data?: any) {
+  const response: any = {
+    success: true,
+    message
+  };
+  
+  if (data !== undefined) {
+    response.data = data;
+  }
+  
+  return response;
 }

@@ -67,7 +67,7 @@ const QuizResultsPage: React.FC = () => {
         const resultsData = await getQuizResults(sessionId);
         setResults(resultsData);
       } catch (error) {
-        console.error('Failed to load quiz results:', error);
+        // Error is handled by QuizContext
         navigate('/quiz/start');
       }
     };
@@ -129,7 +129,7 @@ const QuizResultsPage: React.FC = () => {
           url: window.location.href
         });
       } catch (error) {
-        console.error('Error sharing:', error);
+        // Error is handled by browser API
       }
     } else {
       // Fallback: copy to clipboard

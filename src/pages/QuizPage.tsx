@@ -72,7 +72,7 @@ export default function QuizPage() {
         setMarkedForReview(false);
       }
     } catch (error) {
-      console.error('Error submitting answer:', error);
+      // Error is handled by QuizContext
     }
   };
 
@@ -91,7 +91,7 @@ export default function QuizPage() {
         pause();
       }
     } catch (error) {
-      console.error('Error pausing/resuming quiz:', error);
+      // Error is handled by QuizContext
     }
   };
 
@@ -100,7 +100,7 @@ export default function QuizPage() {
       await completeQuiz();
       navigate(`/quiz/results/${sessionId}`);
     } catch (error) {
-      console.error('Error completing quiz:', error);
+      // Error is handled by QuizContext
     }
   };
 
@@ -110,7 +110,7 @@ export default function QuizPage() {
         await exitQuiz();
         navigate('/dashboard');
       } catch (error) {
-        console.error('Error exiting quiz:', error);
+        // Error is handled by QuizContext
         // Navigate anyway since user wants to exit
         navigate('/dashboard');
       }

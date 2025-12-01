@@ -43,7 +43,7 @@ const QuizStartPage: React.FC = () => {
       const sessionId = await startQuiz(config);
       navigate(`/quiz/active?sessionId=${sessionId}`);
     } catch (error: any) {
-      console.error('Failed to start quiz:', error);
+      // Error is handled by QuizContext
     }
   };
 

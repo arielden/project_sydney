@@ -1,21 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { authAPI, apiHelpers } from '../utils/api';
-
-// Auth user interface
-interface AuthUser {
-  id: string;
-  email: string;
-  username: string;
-  first_name?: string;
-  last_name?: string;
-  created_at: string;
-  updated_at: string;
-  last_login?: string;
-  is_active: boolean;
-  current_elo?: number;
-  peak_elo?: number;
-}
+import { authService } from '../services/authService';
+import { AuthUser } from '../services/api';
 
 // Register data interface
 interface RegisterData {
@@ -138,21 +124,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (token && userData) {
           // Verify token is still valid
           try {
-            const response = await authAPI.verifyAuth();
-            if (response.success && response.data?.user) {
-              dispatch({
-                type: 'LOGIN_SUCCESS',
-                payload: {
-                  user: response.data.user,
-                  token,
-                },
-              });
-            } else {
-              // Token invalid, clear storage
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('user');
-              dispatch({ type: 'LOGOUT' });
-            }
+            const user = await authService.verifyAuth();
+            dispatch({
+              type: 'LOGIN_SUCCESS',
+              payload: {
+                user,
+                token,
+              },
+            });
           } catch (error) {
             // Token verification failed, clear storage
             console.warn('Token verification failed during initialization:', error);
@@ -181,26 +160,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await authAPI.login({ email, password });
+      const { user, token } = await authService.loginUser(email, password);
       
-      if (response.success && response.data) {
-        const { user, token } = response.data;
-        
-        // Store in localStorage
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        // Update state
-        dispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: { user, token },
-        });
-      } else {
-        throw new Error(response.message || 'Login failed');
-      }
+      // Store in localStorage
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      // Update state
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, token },
+      });
     } catch (error: any) {
-      const errorMessage = apiHelpers.extractErrorMessage(error);
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
   }, []);
@@ -217,26 +189,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
 
-      const response = await authAPI.register(userData);
+      const { user, token } = await authService.registerUser(userData);
       
-      if (response.success && response.data) {
-        const { user, token } = response.data;
-        
-        // Store in localStorage
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        // Update state
-        dispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: { user, token },
-        });
-      } else {
-        throw new Error(response.message || 'Registration failed');
-      }
+      // Store in localStorage
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      // Update state
+      dispatch({
+        type: 'LOGIN_SUCCESS',
+        payload: { user, token },
+      });
     } catch (error: any) {
-      const errorMessage = apiHelpers.extractErrorMessage(error);
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
   }, []);
@@ -252,7 +217,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Call logout API (optional, for future features like token blacklisting)
     // Do this after state update to prevent any timing issues
-    authAPI.logout().catch(error => {
+    authService.logoutUser().catch(error => {
       console.warn('Logout API call failed (non-critical):', error);
     });
   }, []);
@@ -265,16 +230,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check auth status function
   const checkAuth = useCallback(async (): Promise<void> => {
     try {
-      const response = await authAPI.verifyAuth();
-      if (response.success && response.data?.user) {
-        dispatch({
-          type: 'UPDATE_USER',
-          payload: response.data.user,
-        });
-      } else {
-        console.warn('Auth check failed: Invalid response');
-        logout();
-      }
+      const user = await authService.verifyAuth();
+      dispatch({
+        type: 'UPDATE_USER',
+        payload: user,
+      });
     } catch (error) {
       // Auth check failed, logout
       console.warn('Auth check failed:', error);
