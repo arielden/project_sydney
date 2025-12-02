@@ -1,4 +1,5 @@
-import api, { ApiResponse, AuthUser, AuthResponse, LoginCredentials, RegisterData, apiHelpers } from './api';
+import api, { apiHelpers } from './api';
+import type { AuthUser, AuthResponse, LoginCredentials, RegisterData } from './api';
 
 /**
  * Authentication service - handles all auth-related API calls

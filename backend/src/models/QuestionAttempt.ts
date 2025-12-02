@@ -184,7 +184,7 @@ class QuestionAttemptModel {
         incorrectAnswers,
         score: Math.round(score * 100) / 100, // Round to 2 decimal places
         totalTimeSpent,
-        averageTimePerQuestion: Math.round(averageTimePerQuestion * 100) / 100
+        averageTimePerQuestion: Math.round(averageTimePerQuestion) // Round to whole seconds for time display
       };
       
     } catch (error) {

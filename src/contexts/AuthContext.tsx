@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../services/authService';
-import { AuthUser } from '../services/api';
+import type { AuthUser } from '../services/api';
 
 // Register data interface
 interface RegisterData {

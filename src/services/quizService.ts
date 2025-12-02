@@ -1,4 +1,4 @@
-import api, { ApiResponse, apiHelpers } from './api';
+import api, { apiHelpers } from './api';
 
 /**
  * Quiz session interface
