@@ -21,7 +21,11 @@ export interface QuizQuestion {
   question_text: string;
   options: Array<{ id: string; text: string }>;
   difficulty_rating: number;
+  elo_rating?: number;
   question_type: string;
+  category_id?: string;
+  expected_score?: number;
+  appropriateness_score?: number;
   questionNumber: number;
   totalQuestions: number;
   timeLimit: number;

@@ -95,7 +95,7 @@ api.interceptors.response.use(
       // Token expired or invalid - clear storage
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      
+
       // Redirect to login if not already on auth pages
       if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
         // Use setTimeout to prevent navigation conflicts
@@ -104,7 +104,7 @@ api.interceptors.response.use(
         }, 100);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -122,15 +122,15 @@ export const apiHelpers = {
     if (error.response?.data?.message) {
       return error.response.data.message;
     }
-    
+
     if (error.response?.data?.errors?.length > 0) {
       return error.response.data.errors[0];
     }
-    
+
     if (error.message) {
       return error.message;
     }
-    
+
     return 'An unexpected error occurred';
   },
 
@@ -143,7 +143,7 @@ export const apiHelpers = {
     if (error.response?.data?.errors?.length > 0) {
       return error.response.data.errors;
     }
-    
+
     const message = apiHelpers.extractErrorMessage(error);
     return [message];
   },

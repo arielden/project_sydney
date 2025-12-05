@@ -1,5 +1,8 @@
 import pool from '../config/database';
 import { PoolClient } from 'pg';
+import { ELOCalculator } from '../utils/eloCalculator';
+// Re-enable MicroRating for category-specific tracking
+import MicroRatingModel from './MicroRating';
 
 export interface QuestionAttempt {
   id: string;
@@ -35,10 +38,12 @@ export interface SessionScore {
 
 class QuestionAttemptModel {
   /**
-   * Record a new question attempt
+   * Record a new question attempt with simplified scoring
    */
   static async recordAttempt(data: CreateAttemptData): Promise<QuestionAttempt> {
     const { sessionId, questionId, userId, userAnswer, timeSpent } = data;
+    
+    console.log('🎯 Recording attempt (simplified):', { sessionId, questionId, userId, userAnswer, timeSpent });
     
     const client: PoolClient = await pool.connect();
     
@@ -46,7 +51,11 @@ class QuestionAttemptModel {
       await client.query('BEGIN');
       
       // Get question details to check correct answer
-      const questionQuery = 'SELECT correct_answer, difficulty_rating FROM questions WHERE id = $1';
+      const questionQuery = `
+        SELECT correct_answer, difficulty_rating, category_id, elo_rating, times_answered
+        FROM questions 
+        WHERE id = $1
+      `;
       const questionResult = await client.query(questionQuery, [questionId]);
       
       if (questionResult.rows.length === 0) {
@@ -56,53 +65,144 @@ class QuestionAttemptModel {
       const question = questionResult.rows[0];
       const isCorrect = question.correct_answer.toLowerCase() === userAnswer.toLowerCase();
       
-      // Get current player rating (for now, use default 1200 if no rating exists)
-      const playerRatingQuery = `
-        SELECT overall_elo FROM player_ratings WHERE user_id = $1
-      `;
-      const ratingResult = await client.query(playerRatingQuery, [userId]);
-      const currentRating = ratingResult.rows[0]?.overall_elo || 1200;
+      console.log('📚 Question checked:', {
+        questionId,
+        correctAnswer: question.correct_answer,
+        userAnswer,
+        isCorrect,
+        categoryId: question.category_id
+      });
       
-      // For now, ratings don't change (ELO will be implemented later)
-      const playerRatingBefore = currentRating;
-      const playerRatingAfter = currentRating;
-      const questionRatingBefore = question.difficulty_rating;
-      const questionRatingAfter = question.difficulty_rating;
+      // Initialize micro ratings for new users
+      try {
+        console.log('🎯 Ensuring micro ratings initialized for user:', userId);
+        await MicroRatingModel.initializeUserMicroRatings(userId);
+      } catch (initError) {
+        console.log('ℹ️ Micro ratings already initialized or failed:', initError instanceof Error ? initError.message : 'Unknown error');
+      }
       
-      // Insert the attempt
+      // Get current player rating and stats
+      let playerRatingBefore = 1200; // Default rating
+      let playerGamesPlayed = 0;
+      let playerKFactor = 100;
+      
+      try {
+        const playerRatingQuery = `
+          SELECT overall_elo, games_played, k_factor 
+          FROM player_ratings 
+          WHERE user_id = $1
+        `;
+        const playerResult = await client.query(playerRatingQuery, [userId]);
+        if (playerResult.rows.length > 0) {
+          const playerData = playerResult.rows[0];
+          playerRatingBefore = playerData.overall_elo || 1200;
+          playerGamesPlayed = playerData.games_played || 0;
+          playerKFactor = playerData.k_factor || ELOCalculator.calculatePlayerKFactor(playerGamesPlayed);
+        }
+      } catch (playerError) {
+        console.log('⚠️ Could not fetch player rating, using defaults:', playerError instanceof Error ? playerError.message : 'Unknown error');
+      }
+      
+      // Get question rating and stats
+      const questionRatingBefore = question.elo_rating || 1200;
+      const questionTimesRated = question.times_answered || 0;
+      const questionKFactor = ELOCalculator.calculateQuestionKFactor(questionTimesRated);
+      
+      // Perform complete ELO calculation
+      const eloResult = ELOCalculator.performELOCalculation(
+        {
+          currentRating: playerRatingBefore,
+          kFactor: playerKFactor,
+          gamesPlayed: playerGamesPlayed
+        },
+        {
+          currentRating: questionRatingBefore,
+          kFactor: questionKFactor,
+          timesRated: questionTimesRated
+        },
+        isCorrect
+      );
+      
+      console.log('🧮 ELO Calculation Results:', {
+        playerRatingBefore,
+        playerRatingAfter: eloResult.playerNewRating,
+        playerEloChange: eloResult.playerEloChange,
+        questionRatingBefore,
+        questionRatingAfter: eloResult.questionNewRating,
+        questionEloChange: eloResult.questionEloChange,
+        expectedScore: eloResult.expectedScore,
+        actualScore: eloResult.actualScore
+      });
+      
+      // Insert ELO-calculated attempt record
       const attemptQuery = `
         INSERT INTO question_attempts (
           session_id, question_id, user_id, user_answer, is_correct, time_spent,
           player_rating_before, player_rating_after, 
-          question_rating_before, question_rating_after
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          question_rating_before, question_rating_after,
+          expected_score, elo_change
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
       `;
       
       const attemptResult = await client.query(attemptQuery, [
         sessionId, questionId, userId, userAnswer, isCorrect, timeSpent,
-        playerRatingBefore, playerRatingAfter, 
-        questionRatingBefore, questionRatingAfter
+        playerRatingBefore, eloResult.playerNewRating, 
+        questionRatingBefore, eloResult.questionNewRating,
+        eloResult.expectedScore, eloResult.playerEloChange
       ]);
       
-      // Update question statistics
-      const updateQuestionQuery = `
-        UPDATE questions 
-        SET times_answered = times_answered + 1,
-            times_correct = times_correct + $1,
-            updated_at = NOW()
-        WHERE id = $2
-      `;
+      // Update player rating in player_ratings table
+      await client.query(`
+        INSERT INTO player_ratings (user_id, overall_elo, games_played, k_factor, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          overall_elo = $2,
+          games_played = player_ratings.games_played + 1,
+          k_factor = $4,
+          updated_at = NOW()
+      `, [userId, eloResult.playerNewRating, playerGamesPlayed + 1, eloResult.playerNewKFactor]);
       
-      await client.query(updateQuestionQuery, [isCorrect ? 1 : 0, questionId]);
+      // Update question with ELO results
+      await client.query(`
+        UPDATE questions SET 
+          elo_rating = $1,
+          times_answered = times_answered + 1, 
+          times_correct = times_correct + $2, 
+          k_factor = $3,
+          updated_at = NOW() 
+        WHERE id = $4
+      `, [eloResult.questionNewRating, isCorrect ? 1 : 0, eloResult.questionNewKFactor, questionId]);
       
       await client.query('COMMIT');
+      console.log('✅ Attempt recorded successfully');
+      
+      // Update category-specific micro ratings (async, don't block main response)
+      if (question.category_id) {
+        try {
+          console.log('🎯 Updating micro rating for category:', question.category_id);
+          await MicroRatingModel.recordAttempt(userId, question.category_id, isCorrect);
+          console.log('✅ Micro rating updated successfully');
+        } catch (microError) {
+          console.error('⚠️ Failed to update micro rating:', microError instanceof Error ? microError.message : 'Unknown error');
+          // Don't throw error, just log it - micro rating is supplementary
+        }
+      }
+      
       return attemptResult.rows[0];
       
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Error recording question attempt:', error);
-      throw new Error('Failed to record question attempt');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Error recording attempt:', {
+        error: errorMessage,
+        userId,
+        questionId,
+        sessionId,
+        userAnswer
+      });
+      throw new Error(`Failed to record question attempt: ${errorMessage}`);
     } finally {
       client.release();
     }
@@ -218,32 +318,75 @@ class QuestionAttemptModel {
   }
 
   /**
-   * Get user's performance by question type
+   * Get user's performance by question type with ELO insights
    */
   static async getUserPerformanceByType(userId: string): Promise<any[]> {
     const query = `
       SELECT 
         q.question_type,
+        q.category_id,
         COUNT(*) as total_attempts,
         SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END) as correct_attempts,
         ROUND(
           (SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END)::DECIMAL / COUNT(*)) * 100, 
           2
         ) as accuracy_percentage,
-        AVG(qa.time_spent) as avg_time_spent
+        AVG(qa.time_spent) as avg_time_spent,
+        AVG(qa.player_rating_before) as avg_player_rating,
+        AVG(qa.question_rating_before) as avg_question_difficulty,
+        AVG(qa.player_rating_after - qa.player_rating_before) as avg_rating_change
       FROM question_attempts qa
       JOIN questions q ON qa.question_id = q.id
       WHERE qa.user_id = $1
-      GROUP BY q.question_type
+      GROUP BY q.question_type, q.category_id
       ORDER BY accuracy_percentage DESC
     `;
     
     try {
       const result = await pool.query(query, [userId]);
-      return result.rows;
+      
+      // Return results without micro ratings (ELO temporarily disabled)
+      const enhancedResults = result.rows.map((row) => {
+        return {
+          ...row,
+          current_micro_rating: 1200, // Default rating
+          avg_rating_change: parseFloat(row.avg_rating_change) || 0
+        };
+      });
+      
+      return enhancedResults;
     } catch (error) {
       console.error('Error fetching user performance by type:', error);
       throw new Error('Failed to fetch user performance by type');
+    }
+  }
+
+  /**
+   * Get ELO progression for a user
+   */
+  static async getUserELOProgression(userId: string, limit: number = 50): Promise<any[]> {
+    const query = `
+      SELECT 
+        qa.answered_at,
+        qa.is_correct,
+        qa.player_rating_before,
+        qa.player_rating_after,
+        qa.player_rating_after - qa.player_rating_before as rating_change,
+        q.question_type,
+        q.category_id
+      FROM question_attempts qa
+      JOIN questions q ON qa.question_id = q.id
+      WHERE qa.user_id = $1
+      ORDER BY qa.answered_at DESC
+      LIMIT $2
+    `;
+    
+    try {
+      const result = await pool.query(query, [userId, limit]);
+      return result.rows;
+    } catch (error) {
+      console.error('Error fetching user ELO progression:', error);
+      throw new Error('Failed to fetch user ELO progression');
     }
   }
 

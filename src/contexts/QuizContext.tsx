@@ -8,6 +8,10 @@ export interface Question {
   options: Array<{ id: string; text: string }>;
   question_type: string;
   difficulty_rating: number;
+  elo_rating?: number;
+  category_id?: string;
+  expected_score?: number;
+  appropriateness_score?: number;
   correct_answer: string;
   explanation?: string;
   questionNumber?: number;
@@ -295,31 +299,45 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   // Submit an answer
   const submitAnswer = useCallback(async (userAnswer: string, markedForReview: boolean = false) => {
     try {
-      if (!state.currentSession || !state.currentQuestion) {
-        throw new Error('No active quiz session or question');
+      if (!state.currentSession) {
+        throw new Error('No active quiz session');
+      }
+      
+      if (!state.currentQuestion) {
+        throw new Error('No current question');
+      }
+      
+      if (!userAnswer || userAnswer.trim() === '') {
+        throw new Error('Answer is required');
       }
       
       dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
+      
+      // Ensure timeSpent is a positive integer
+      const timeSpent = Math.max(1, Math.floor(state.timeElapsed || 30));
       
       const result = await quizService.submitAnswer(
         state.currentSession.id,
         state.currentQuestion.id,
         userAnswer,
-        state.timeElapsed
+        timeSpent
       );
       
       const answer: QuizAnswer = {
         questionId: state.currentQuestion.id,
         userAnswer,
         isCorrect: result.isCorrect,
-        timeSpent: state.timeElapsed,
+        timeSpent: timeSpent,
         questionNumber: state.questionNumber
       };
       
       dispatch({ type: 'SUBMIT_ANSWER', payload: answer });
+      return result;
     } catch (error: any) {
       console.error('Error submitting answer:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to submit answer' });
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit answer';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -334,6 +352,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       }
       
       dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
       
       const result = await quizService.getNextQuestion(state.currentSession.id);
       
@@ -347,7 +366,11 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error('Error getting next question:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to get next question' });
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to get next question';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [state.currentSession]);
 
@@ -413,6 +436,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       }
       
       dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'SET_ERROR', payload: null });
       
       const result = await quizService.getNextQuestion(state.currentSession.id);
       
@@ -428,8 +452,11 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error('Error getting next question:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to get next question' });
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to get next question';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
       return false;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [state.currentSession]);
 

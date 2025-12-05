@@ -46,6 +46,9 @@ interface QuizResults {
     explanation?: string;
     options: any;
   }>;
+  previousRating?: number;
+  newRating?: number;
+  ratingChange?: number;
 }
 
 const QuizResultsPage: React.FC = () => {
@@ -260,23 +263,29 @@ const QuizResultsPage: React.FC = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Previous Rating:</span>
-                        <span className="font-medium">{results.previousRating}</span>
+                        <span className="font-medium">{results.previousRating || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">New Rating:</span>
-                        <span className="font-medium">{results.newRating}</span>
+                        <span className="font-medium">{results.newRating || 'N/A'}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Change:</span>
                         <div className="flex items-center">
-                          {results.ratingChange >= 0 ? (
-                            <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
+                          {results.ratingChange !== undefined ? (
+                            <>
+                              {results.ratingChange >= 0 ? (
+                                <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
+                              ) : (
+                                <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
+                              )}
+                              <span className={`font-medium ${results.ratingChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {results.ratingChange >= 0 ? '+' : ''}{results.ratingChange} points
+                              </span>
+                            </>
                           ) : (
-                            <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
+                            <span className="font-medium text-gray-500">N/A</span>
                           )}
-                          <span className={`font-medium ${results.ratingChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {results.ratingChange >= 0 ? '+' : ''}{results.ratingChange} points
-                          </span>
                         </div>
                       </div>
                     </div>

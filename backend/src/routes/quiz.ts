@@ -4,7 +4,9 @@ import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import QuizSessionModel from '../models/QuizSession';
 import QuestionModel from '../models/Question';
 import QuestionAttemptModel from '../models/QuestionAttempt';
+import AdaptiveSelectionService from '../utils/adaptiveSelection';
 import { formatErrorResponse, formatSuccessResponse } from '../utils/helpers';
+import pool from '../config/database';
 
 const router = express.Router();
 
@@ -138,20 +140,35 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       ));
     }
 
-    // Get current rating (defaulting to 1500 for new players)
-    const currentRating = 1500;
-    
-    // Get adaptive next question
-    const answeredQuestionIds = attempts.map((a: any) => a.question_id);
-    const questions = await QuestionModel.getAdaptiveQuestions(
-      currentRating,
-      1, // Just one question
-      answeredQuestionIds
-    );
-    const nextQuestion = questions[0];
+    // Use adaptive question selection based on user performance
+    let question;
+    try {
+      const adaptiveQuestion = await AdaptiveSelectionService.selectNextBestQuestion(
+        userId,
+        sessionId
+      );
+      question = adaptiveQuestion;
+    } catch (adaptiveError) {
+      console.log('⚠️ Adaptive selection failed, falling back to random:', adaptiveError instanceof Error ? adaptiveError.message : 'Unknown error');
+      
+      // Fallback to random selection if adaptive fails
+      const attemptedQuestionIds = attempts.map(attempt => attempt.question_id);
+      const questionQuery = `
+        SELECT id, question_text, options, difficulty_rating, 
+               COALESCE(elo_rating, 1200) as elo_rating, question_type, 
+               category_id, correct_answer, explanation
+        FROM questions 
+        WHERE id NOT IN (${attemptedQuestionIds.map((_, i) => `$${i + 1}`).join(', ') || 'NULL'})
+        ORDER BY RANDOM() 
+        LIMIT 1
+      `;
+      
+      const questionResult = await pool.query(questionQuery, attemptedQuestionIds);
+      question = questionResult.rows[0];
+    }
 
-    if (!nextQuestion) {
-      // No more questions available, complete session
+    if (!question) {
+      // No more suitable questions available, complete session
       await QuizSessionModel.completeSession(sessionId);
       return res.status(200).json(formatSuccessResponse(
         'No more questions available',
@@ -159,13 +176,24 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       ));
     }
 
+    // Ensure question has required properties for response
+    const nextQuestion = {
+      ...question,
+      expected_score: question.expected_score || 0.5, // Default 50% expected score
+      appropriateness_score: question.appropriateness_score || 0.8 // Default appropriateness
+    };
+
     res.json(formatSuccessResponse('Next question retrieved', {
       question: {
         id: nextQuestion.id,
         question_text: nextQuestion.question_text,
         options: nextQuestion.options,
         difficulty_rating: nextQuestion.difficulty_rating,
+        elo_rating: nextQuestion.elo_rating,
         question_type: nextQuestion.question_type,
+        category_id: nextQuestion.category_id,
+        expected_score: nextQuestion.expected_score,
+        appropriateness_score: nextQuestion.appropriateness_score,
         questionNumber: attempts.length + 1,
         totalQuestions: maxQuestions,
         timeLimit: 120
@@ -173,6 +201,12 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       progress: {
         current: attempts.length + 1,
         total: maxQuestions
+      },
+      adaptive_info: {
+        expected_score: Math.round(nextQuestion.expected_score * 100) / 100,
+        appropriateness: Math.round(nextQuestion.appropriateness_score * 100) / 100,
+        difficulty_level: nextQuestion.elo_rating < 1300 ? 'Easy' : 
+                         nextQuestion.elo_rating < 1500 ? 'Medium' : 'Hard'
       }
     }));
 
@@ -188,8 +222,15 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
  */
 async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Promise<any> {
   try {
+    console.log('🎯 Answer submission started:', { 
+      sessionId: req.params.sessionId, 
+      body: req.body, 
+      userId: req.user?.id 
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json(formatErrorResponse(
         'Validation errors',
         errors.array().map(err => err.msg)
@@ -206,6 +247,7 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
+    
     if (!session || session.user_id !== userId) {
       return res.status(404).json(formatErrorResponse('Session not found'));
     }
@@ -216,12 +258,14 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
 
     // Get question details
     const question = await QuestionModel.getQuestionById(questionId);
+    
     if (!question) {
       return res.status(404).json(formatErrorResponse('Question not found'));
     }
 
     // Check if already answered
     const hasAttempted = await QuestionAttemptModel.hasAttempted(sessionId, questionId);
+    
     if (hasAttempted) {
       return res.status(400).json(formatErrorResponse('Question already answered'));
     }
@@ -230,6 +274,7 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
     const isCorrect = question.correct_answer === userAnswer;
     
     // Save attempt
+    console.log('💾 Recording attempt...');
     const attempt = await QuestionAttemptModel.recordAttempt({
       sessionId,
       questionId,
@@ -238,14 +283,16 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
       timeSpent
     });
 
-    res.json(formatSuccessResponse('Answer submitted successfully', {
+    const responseData = {
       attempt: {
         id: attempt.id,
         isCorrect,
         correctAnswer: question.correct_answer,
         explanation: question.explanation
       }
-    }));
+    };
+
+    res.json(formatSuccessResponse('Answer submitted successfully', responseData));
 
   } catch (error) {
     console.error('Error submitting answer:', error);
@@ -517,5 +564,128 @@ router.get('/:sessionId/results', sessionParamValidation, handleGetQuizResults);
  * Get current session status and progress
  */
 router.get('/:sessionId/status', sessionParamValidation, handleGetSessionStatus);
+
+/**
+ * GET /api/quiz/adaptive/priorities
+ * Get category priorities for adaptive learning (temporarily disabled)
+ */
+async function handleGetAdaptivePriorities(req: AuthenticatedRequest, res: Response): Promise<any> {
+  try {
+    const userId = req.user!.id;
+    
+    // Get user's category priorities using AdaptiveSelectionService
+    const priorities = await AdaptiveSelectionService.getCategoryPriorities(userId);
+    
+    res.json(formatSuccessResponse('Category priorities retrieved', {
+      priorities
+    }));
+  } catch (error) {
+    console.error('Error getting adaptive priorities:', error);
+    return res.status(500).json(formatErrorResponse('Failed to get adaptive priorities'));
+  }
+}
+
+/**
+ * POST /api/quiz/adaptive/question
+ * Get adaptive question for specific category (temporarily disabled)
+ */
+async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Response): Promise<any> {
+  try {
+    const { sessionId } = req.body;
+    const userId = req.user?.id;
+
+    if (!sessionId) {
+      return res.status(400).json(formatErrorResponse('Session ID is required'));
+    }
+
+    // Verify session belongs to user
+    const session = await QuizSessionModel.getSession(sessionId);
+    if (!session || session.user_id !== userId) {
+      return res.status(404).json(formatErrorResponse('Session not found'));
+    }
+
+    // Use adaptive selection to get best question for category
+    const categoryId = req.body.categoryId; // Get categoryId from request body
+    const question = await AdaptiveSelectionService.selectNextBestQuestion(
+      userId!,
+      sessionId,
+      categoryId
+    );
+
+    if (!question) {
+      return res.status(404).json(formatErrorResponse('No suitable questions found'));
+    }
+
+    // Add default values
+    question.expected_score = 0.5;
+    question.appropriateness_score = 0.8;
+    
+    res.json(formatSuccessResponse('Adaptive question retrieved', {
+      question: {
+        id: question.id,
+        question_text: question.question_text,
+        options: question.options,
+        difficulty_rating: question.difficulty_rating,
+        elo_rating: question.elo_rating,
+        question_type: question.question_type,
+        category_id: question.category_id,
+        expected_score: question.expected_score,
+        appropriateness_score: question.appropriateness_score,
+        timeLimit: 120
+      },
+      adaptive_info: {
+        expected_score: Math.round(question.expected_score * 100) / 100,
+        appropriateness: Math.round(question.appropriateness_score * 100) / 100,
+        difficulty_level: question.elo_rating < 1300 ? 'Easy' : 
+                         question.elo_rating < 1500 ? 'Medium' : 'Hard'
+      }
+    }));
+
+  } catch (error) {
+    console.error('Error getting adaptive question:', error);
+    return res.status(500).json(formatErrorResponse('Failed to get adaptive question'));
+  }
+}
+
+/**
+ * GET /api/quiz/adaptive/recommendation/:categoryId
+ * Get difficulty recommendation for a category (temporarily disabled)
+ */
+async function handleGetDifficultyRecommendation(req: AuthenticatedRequest, res: Response): Promise<any> {
+  try {
+    const { categoryId } = req.params;
+    const userId = req.user!.id;
+    
+    if (!categoryId) {
+      return res.status(400).json(formatErrorResponse('Category ID is required'));
+    }
+    
+    // Get difficulty recommendation using AdaptiveSelectionService
+    const recommendation = await AdaptiveSelectionService.getRecommendedDifficulty(
+      userId,
+      categoryId
+    );
+    
+    res.json(formatSuccessResponse('Difficulty recommendation retrieved', {
+      category_id: categoryId,
+      recommended_level: recommendation.level,
+      user_rating: recommendation.rating
+    }));
+    
+  } catch (error) {
+    console.error('Error getting difficulty recommendation:', error);
+    return res.status(500).json(formatErrorResponse('Failed to get difficulty recommendation'));
+  }
+}
+
+router.get('/adaptive/priorities', handleGetAdaptivePriorities);
+router.post('/adaptive/question', [
+  body('sessionId').isUUID().withMessage('Invalid session ID'),
+  body('categoryId').optional().isString(),
+  body('targetDifficulty').optional().isIn(['auto', 'easy', 'medium', 'hard'])
+], handleGetAdaptiveQuestion);
+router.get('/adaptive/recommendation/:categoryId', [
+  param('categoryId').isString().withMessage('Invalid category ID')
+], handleGetDifficultyRecommendation);
 
 export default router;
