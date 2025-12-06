@@ -19,6 +19,7 @@ export interface AuthUser {
   username: string;
   first_name?: string;
   last_name?: string;
+  role?: 'user' | 'admin';
   created_at: string;
   updated_at: string;
   last_login?: string;

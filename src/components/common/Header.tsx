@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { User, LogOut, Menu } from 'lucide-react';
+import { User, LogOut, Menu, Shield } from 'lucide-react';
 import { useState } from 'react';
 
 const Header = () => {
@@ -123,6 +123,16 @@ const Header = () => {
                       >
                         Dashboard
                       </Link>
+                      {user?.role === 'admin' && (
+                        <Link
+                          to="/admin"
+                          className="block px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 transition-colors flex items-center space-x-2"
+                          onClick={() => setShowUserMenu(false)}
+                        >
+                          <Shield size={16} />
+                          <span>Admin Panel</span>
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center space-x-2"

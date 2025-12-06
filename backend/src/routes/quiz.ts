@@ -21,14 +21,14 @@ const startQuizValidation = [
 ];
 
 const submitAnswerValidation = [
-  param('sessionId').isUUID().withMessage('Invalid session ID'),
-  body('questionId').isUUID().withMessage('Invalid question ID'),
+  param('sessionId').isInt().withMessage('Invalid session ID'),
+  body('questionId').isInt().withMessage('Invalid question ID'),
   body('userAnswer').notEmpty().withMessage('Answer is required'),
   body('timeSpent').isInt({ min: 0 }).withMessage('Time spent must be a positive integer')
 ];
 
 const sessionParamValidation = [
-  param('sessionId').isUUID().withMessage('Invalid session ID')
+  param('sessionId').isInt().withMessage('Invalid session ID')
 ];
 
 /**
@@ -64,7 +64,7 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
 
     // Generate adaptive first question (starting with medium difficulty)
     const questions = await QuestionModel.getAdaptiveQuestions(
-      1500, // Starting rating
+      1000, // Starting rating (medium difficulty)
       1, // Just one question
       [] // No previous attempts for first question
     );
@@ -680,7 +680,7 @@ async function handleGetDifficultyRecommendation(req: AuthenticatedRequest, res:
 
 router.get('/adaptive/priorities', handleGetAdaptivePriorities);
 router.post('/adaptive/question', [
-  body('sessionId').isUUID().withMessage('Invalid session ID'),
+  body('sessionId').isInt().withMessage('Invalid session ID'),
   body('categoryId').optional().isString(),
   body('targetDifficulty').optional().isIn(['auto', 'easy', 'medium', 'hard'])
 ], handleGetAdaptiveQuestion);

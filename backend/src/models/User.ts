@@ -31,6 +31,7 @@ export interface UserResponse {
   username: string;
   first_name?: string;
   last_name?: string;
+  role?: string;
   created_at: Date;
   updated_at: Date;
   last_login?: Date;
@@ -88,7 +89,7 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
 export async function findUserByEmail(email: string): Promise<User | null> {
   try {
     const query = `
-      SELECT id, email, username, password_hash, first_name, last_name, 
+      SELECT id, email, username, password_hash, first_name, last_name, role,
              created_at, updated_at, last_login, is_active
       FROM users 
       WHERE email = $1 AND is_active = true
@@ -115,7 +116,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function findUserById(id: string): Promise<UserResponse | null> {
   try {
     const query = `
-      SELECT id, email, username, first_name, last_name, 
+      SELECT id, email, username, first_name, last_name, role,
              created_at, updated_at, last_login, is_active
       FROM users 
       WHERE id = $1 AND is_active = true

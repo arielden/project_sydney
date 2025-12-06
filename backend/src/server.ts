@@ -5,6 +5,8 @@ import { testConnection } from './config/database';
 import authRoutes from './routes/auth';
 import quizRoutes from './routes/quiz';
 import ratingsRoutes from './routes/ratings';
+import adminRoutes from './routes/admin';
+import questionTypesRoutes from './routes/questionTypes';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +33,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/ratings', ratingsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/question-types', questionTypesRoutes);
 
 // Health check route
 app.get('/api/health', async (req: Request, res: Response) => {
@@ -66,6 +70,8 @@ app.get('/api', (req: Request, res: Response) => {
       auth: '/api/auth',
       quiz: '/api/quiz',
       ratings: '/api/ratings',
+      admin: '/api/admin',
+      questionTypes: '/api/question-types',
       docs: '/api/docs (coming soon)'
     }
   });

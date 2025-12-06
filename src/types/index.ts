@@ -6,12 +6,15 @@
 // User Management Types
 // -----------------------------------------------------------------------------
 
+export type UserRole = 'user' | 'admin';
+
 export interface User {
   id: string;
   email: string;
   username: string;
   first_name?: string;
   last_name?: string;
+  role?: UserRole;
   created_at?: string;
   updated_at?: string;
 }
@@ -34,6 +37,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  role?: UserRole;
   isAuthenticated: boolean;
 }
 

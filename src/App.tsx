@@ -1,8 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { QuizProvider } from './contexts/QuizContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import AdminRoute from './components/common/AdminRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Header from './components/common/Header';
 import Home from './pages/Home';
@@ -14,12 +16,21 @@ import QuizPage from './pages/QuizPage';
 import QuizStartPage from './pages/QuizStartPage';
 import QuizResultsPage from './pages/QuizResultsPage';
 
+// Admin pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminTables from './pages/admin/AdminTables';
+import AdminTableDetail from './pages/admin/AdminTableDetail';
+import AdminRecordForm from './pages/admin/AdminRecordForm';
+import AdminActivityLog from './pages/admin/AdminActivityLog';
+
 // Component to conditionally render header
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   
   // Hide header on quiz pages for full-screen experience
-  const hideHeader = location.pathname.startsWith('/quiz/active') || location.pathname.startsWith('/quiz/results');
+  const hideHeader = location.pathname.startsWith('/quiz/active') || 
+                     location.pathname.startsWith('/quiz/results') ||
+                     location.pathname.startsWith('/admin');
   
   return (
     <div className="min-h-screen bg-white">
@@ -47,6 +58,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <Toaster position="top-right" />
       <Router>
         <AuthProvider>
           <QuizProvider>
@@ -91,6 +103,38 @@ function App() {
                   <ProtectedRoute>
                     <QuizStartPage />
                   </ProtectedRoute>
+                } />
+                
+                {/* Admin routes */}
+                <Route path="/admin" element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/tables" element={
+                  <AdminRoute>
+                    <AdminTables />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/tables/:tableName" element={
+                  <AdminRoute>
+                    <AdminTableDetail />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/tables/:tableName/new" element={
+                  <AdminRoute>
+                    <AdminRecordForm />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/tables/:tableName/:recordId" element={
+                  <AdminRoute>
+                    <AdminRecordForm />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/activity" element={
+                  <AdminRoute>
+                    <AdminActivityLog />
+                  </AdminRoute>
                 } />
               </Routes>
             </AppLayout>

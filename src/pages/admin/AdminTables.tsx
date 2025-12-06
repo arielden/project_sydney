@@ -1,0 +1,166 @@
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Database, Table, RefreshCw, ExternalLink, Search } from 'lucide-react';
+import { adminService } from '../../services/adminService';
+import type { TableInfo } from '../../services/adminService';
+import AdminLayout from '../../components/admin/AdminLayout';
+
+const AdminTables: React.FC = () => {
+  const [tables, setTables] = useState<TableInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const loadTables = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminService.getTables();
+      setTables(data);
+    } catch (err) {
+      setError('Failed to load tables');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTables();
+  }, []);
+
+  const filteredTables = tables.filter(table =>
+    table.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getTableIcon = (tableName: string) => {
+    const icons: Record<string, string> = {
+      users: '👤',
+      questions: '❓',
+      question_attempts: '📝',
+      quiz_sessions: '📋',
+      player_ratings: '⭐',
+      micro_ratings: '📊',
+      admin_activity_log: '📜'
+    };
+    return icons[tableName] || '📁';
+  };
+
+  const getTableDescription = (tableName: string) => {
+    const descriptions: Record<string, string> = {
+      users: 'User accounts and authentication data',
+      questions: 'Quiz questions with categories and difficulty',
+      question_attempts: 'Individual question answer attempts',
+      quiz_sessions: 'Quiz session records and scores',
+      player_ratings: 'Overall player ELO ratings',
+      micro_ratings: 'Category-specific micro ratings',
+      admin_activity_log: 'Admin action audit trail'
+    };
+    return descriptions[tableName] || 'Database table';
+  };
+
+  return (
+    <AdminLayout
+      title="Database Tables"
+      breadcrumbs={[
+        { label: 'Dashboard', href: '/admin' },
+        { label: 'Tables' }
+      ]}
+    >
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Database className="w-7 h-7" />
+              Database Tables
+            </h1>
+            <p className="text-gray-500 mt-1">
+              {tables.length} tables · {tables.reduce((sum, t) => sum + t.count, 0).toLocaleString()} total records
+            </p>
+          </div>
+          <button
+            onClick={loadTables}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search tables..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTables.map((table) => (
+              <Link
+                key={table.name}
+                to={`/admin/tables/${table.name}`}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-blue-300 transition-all group"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{getTableIcon(table.name)}</span>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
+                        {table.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {getTableDescription(table.name)}
+                      </p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                </div>
+                
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Table className="w-4 h-4" />
+                    <span>{Array.isArray(table.columns) ? table.columns.length : table.columns} columns</span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">
+                    {table.count.toLocaleString()} 
+                    <span className="text-sm font-normal text-gray-500 ml-1">records</span>
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {!loading && filteredTables.length === 0 && searchTerm && (
+          <div className="text-center py-12">
+            <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">No tables found</h3>
+            <p className="text-gray-500 mt-1">
+              No tables match "{searchTerm}"
+            </p>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default AdminTables;
