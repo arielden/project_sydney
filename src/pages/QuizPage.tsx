@@ -282,6 +282,7 @@ export default function QuizPage() {
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
   const [reviewQuestions, setReviewQuestions] = useState<Set<number>>(new Set());
   const [questionAnswers, setQuestionAnswers] = useState<Map<number, string>>(new Map());
+  const [submittedQuestions, setSubmittedQuestions] = useState<Set<number>>(new Set()); // Track which questions have been submitted to backend
   const [showUnansweredWarning, setShowUnansweredWarning] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
   
@@ -387,20 +388,12 @@ export default function QuizPage() {
     // Save time for current question before navigating
     saveCurrentQuestionTime();
     
-    // If an answer is selected, save it locally
+    // If an answer is selected, save it locally (don't submit to backend yet)
     if (selectedAnswer) {
-      // Track this question as answered
+      // Track this question as answered locally
       setAnsweredQuestions(prev => new Set(prev).add(questionIndex));
+      // Store the answer locally
       setQuestionAnswers(prev => new Map(prev).set(questionIndex, selectedAnswer));
-      
-      // Submit answer to backend
-      try {
-        const timeSpent = questionTimes.get(questionIndex) || 0;
-        setTimeElapsed(timeSpent);
-        await submitAnswer(selectedAnswer, markedForReview);
-      } catch (error) {
-        console.error('Error submitting answer:', error);
-      }
     }
     
     // Check if we're on the last question
@@ -410,7 +403,7 @@ export default function QuizPage() {
         alert('Please select an answer before finishing the quiz.');
         return;
       }
-      // Quiz completed
+      // Quiz completed - will submit all answers via handleFinishQuiz
       navigate(`/quiz/results/${sessionId}`);
       return;
     }
@@ -446,7 +439,7 @@ export default function QuizPage() {
         console.error('Error getting next question:', error);
       }
     }
-  }, [selectedAnswer, questionNumber, totalQuestions, saveCurrentQuestionTime, questionTimes, setTimeElapsed, submitAnswer, markedForReview, questions, goToQuestion, questionAnswers, reviewQuestions, nextQuestion, navigate, sessionId]);
+  }, [selectedAnswer, questionNumber, totalQuestions, saveCurrentQuestionTime, questions, goToQuestion, questionAnswers, reviewQuestions, nextQuestion, navigate, sessionId]);
 
   const handlePreviousQuestion = useCallback(() => {
     // Save time for current question before navigating
@@ -524,13 +517,31 @@ export default function QuizPage() {
     try {
       // Save current question time before completing
       saveCurrentQuestionTime();
+      
+      // Submit all answers to the backend
+      for (const [index, answer] of questionAnswers.entries()) {
+        try {
+          const question = questions[index];
+          if (question && !submittedQuestions.has(index)) {
+            const timeSpent = questionTimes.get(index) || 0;
+            const isMarkedForReview = reviewQuestions.has(index);
+            await submitAnswer(answer, isMarkedForReview);
+            setSubmittedQuestions(prev => new Set(prev).add(index));
+          }
+        } catch (error) {
+          console.error(`Error submitting answer for question ${index + 1}:`, error);
+          // Continue submitting other answers even if one fails
+        }
+      }
+      
+      // Complete the quiz session
       await completeQuiz();
       navigate(`/quiz/results/${sessionId}`);
     } catch (error) {
       // Error is handled by QuizContext
       console.error('Error submitting quiz:', error);
     }
-  }, [saveCurrentQuestionTime, completeQuiz, navigate, sessionId]);
+  }, [saveCurrentQuestionTime, questionAnswers, questions, submittedQuestions, questionTimes, reviewQuestions, submitAnswer, completeQuiz, navigate, sessionId]);
 
   const handleCompleteQuiz = useCallback(async () => {
     handleFinishQuiz();
