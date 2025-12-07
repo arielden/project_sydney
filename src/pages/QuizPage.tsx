@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuiz } from '../contexts/QuizContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTimer } from '../hooks/useTimer';
+import { quizService } from '../services/quizService';
 import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Flag } from 'lucide-react';
 import { QuestionNavigator } from '../components/quiz';
 
@@ -397,14 +398,21 @@ export default function QuizPage() {
     }
     
     // Check if we're on the last question
-    if (questionNumber === totalQuestions) {
-      // On last question, require an answer to finish
-      if (!selectedAnswer) {
-        alert('Please select an answer before finishing the quiz.');
-        return;
+    if (questionNumber >= totalQuestions) {
+      // On last question, save current answer then check if we can finish
+      if (selectedAnswer) {
+        setAnsweredQuestions(prev => new Set(prev).add(questionIndex));
+        setQuestionAnswers(prev => new Map(prev).set(questionIndex, selectedAnswer));
       }
-      // Quiz completed - will submit all answers via handleFinishQuiz
-      navigate(`/quiz/results/${sessionId}`);
+      
+      // Check if all questions answered (using updated sets)
+      const finalAnsweredCount = answeredQuestions.size + (selectedAnswer && !answeredQuestions.has(questionIndex) ? 1 : 0);
+      
+      if (finalAnsweredCount < totalQuestions) {
+        setShowUnansweredWarning(true);
+      } else {
+        setShowSubmitConfirmation(true);
+      }
       return;
     }
     
@@ -439,7 +447,7 @@ export default function QuizPage() {
         console.error('Error getting next question:', error);
       }
     }
-  }, [selectedAnswer, questionNumber, totalQuestions, saveCurrentQuestionTime, questions, goToQuestion, questionAnswers, reviewQuestions, nextQuestion, navigate, sessionId]);
+  }, [selectedAnswer, questionNumber, totalQuestions, answeredQuestions, saveCurrentQuestionTime, questions, goToQuestion, questionAnswers, reviewQuestions, nextQuestion, navigate, sessionId]);
 
   const handlePreviousQuestion = useCallback(() => {
     // Save time for current question before navigating
@@ -503,29 +511,48 @@ export default function QuizPage() {
   }, [answeredQuestions.size, questions.length, totalQuestions]);
 
   const handleFinishQuiz = useCallback(() => {
-    // Check for unanswered questions
-    if (hasUnansweredQuestions()) {
-      setShowUnansweredWarning(true);
-      return;
+    // Save current answer before checking
+    const questionIndex = questionNumber - 1;
+    if (selectedAnswer) {
+      setAnsweredQuestions(prev => new Set(prev).add(questionIndex));
+      setQuestionAnswers(prev => new Map(prev).set(questionIndex, selectedAnswer));
     }
     
-    // All questions answered - show confirmation modal
-    setShowSubmitConfirmation(true);
-  }, [hasUnansweredQuestions]);
+    // Use a small timeout to ensure state updates are processed
+    setTimeout(() => {
+      // Check for unanswered questions
+      const finalAnsweredCount = answeredQuestions.size + (selectedAnswer && !answeredQuestions.has(questionIndex) ? 1 : 0);
+      
+      if (finalAnsweredCount < (questions.length || totalQuestions)) {
+        setShowUnansweredWarning(true);
+        return;
+      }
+      
+      // All questions answered - show confirmation modal
+      setShowSubmitConfirmation(true);
+    }, 50);
+  }, [hasUnansweredQuestions, selectedAnswer, questionNumber, answeredQuestions, questions.length, totalQuestions]);
 
   const handleSubmitQuiz = useCallback(async () => {
     try {
       // Save current question time before completing
       saveCurrentQuestionTime();
       
-      // Submit all answers to the backend
+      // Submit all answers to the backend directly
       for (const [index, answer] of questionAnswers.entries()) {
         try {
           const question = questions[index];
           if (question && !submittedQuestions.has(index)) {
-            const timeSpent = questionTimes.get(index) || 0;
-            const isMarkedForReview = reviewQuestions.has(index);
-            await submitAnswer(answer, isMarkedForReview);
+            const timeSpent = questionTimes.get(index) || 30; // Default to 30 seconds if no time tracked
+            
+            // Submit directly to quizService to avoid currentQuestion dependency
+            await quizService.submitAnswer(
+              sessionId!,
+              question.id,
+              answer,
+              timeSpent
+            );
+            
             setSubmittedQuestions(prev => new Set(prev).add(index));
           }
         } catch (error) {
@@ -541,7 +568,7 @@ export default function QuizPage() {
       // Error is handled by QuizContext
       console.error('Error submitting quiz:', error);
     }
-  }, [saveCurrentQuestionTime, questionAnswers, questions, submittedQuestions, questionTimes, reviewQuestions, submitAnswer, completeQuiz, navigate, sessionId]);
+  }, [saveCurrentQuestionTime, questionAnswers, questions, submittedQuestions, questionTimes, completeQuiz, navigate, sessionId]);
 
   const handleCompleteQuiz = useCallback(async () => {
     handleFinishQuiz();
