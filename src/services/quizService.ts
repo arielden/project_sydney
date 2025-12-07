@@ -117,6 +117,26 @@ export const quizService = {
   },
 
   /**
+   * Get all questions for a quiz session (for local navigation)
+   * @param sessionId - Quiz session identifier
+   * @returns Promise<{questions: QuizQuestion[], totalQuestions: number}>
+   */
+  async getAllQuestions(sessionId: string) {
+    try {
+      const response = await api.get(`/quiz/${sessionId}/questions`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get questions');
+      }
+      
+      return response.data.data;
+    } catch (error: any) {
+      const message = apiHelpers.extractErrorMessage(error);
+      throw new Error(message);
+    }
+  },
+
+  /**
    * Submit answer for a quiz question
    * @param sessionId - Quiz session identifier
    * @param questionId - Question identifier

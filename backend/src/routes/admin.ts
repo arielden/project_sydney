@@ -191,6 +191,27 @@ router.get('/tables/:tableName/fk/:column', async (req: AuthenticatedRequest, re
 });
 
 /**
+ * GET /api/admin/tables/:tableName/options
+ * Get dropdown options from a table (id and display label)
+ */
+router.get('/tables/:tableName/options', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const tableName = req.params.tableName as string;
+    const options = await adminService.getTableOptions(tableName);
+    res.json({
+      success: true,
+      data: options
+    });
+  } catch (error: any) {
+    console.error('Error getting table options:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to get table options'
+    });
+  }
+});
+
+/**
  * GET /api/admin/tables/:tableName/:id
  * Get single record by ID
  */

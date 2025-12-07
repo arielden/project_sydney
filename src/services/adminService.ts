@@ -277,9 +277,10 @@ export const adminService = {
    */
   async getForeignKeyOptions(tableName: string, column?: string): Promise<ForeignKeyOption[]> {
     try {
+      // If no column specified, get options directly from the table
       const url = column 
         ? `/admin/tables/${tableName}/fk/${column}`
-        : `/admin/tables/${tableName}/fk`;
+        : `/admin/tables/${tableName}/options`;
       const response = await api.get(url);
       
       if (!response.data.success) {
@@ -289,7 +290,8 @@ export const adminService = {
       // Map to add value alias
       return response.data.data.map((opt: ForeignKeyOption) => ({
         ...opt,
-        value: parseInt(opt.id) || opt.value
+        value: opt.id ?? opt.value,
+        label: opt.label
       }));
     } catch (error: unknown) {
       const message = apiHelpers.extractErrorMessage(error);

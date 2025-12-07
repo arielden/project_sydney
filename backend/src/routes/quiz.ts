@@ -688,4 +688,79 @@ router.get('/adaptive/recommendation/:categoryId', [
   param('categoryId').isString().withMessage('Invalid category ID')
 ], handleGetDifficultyRecommendation);
 
+/**
+ * Get all questions for a quiz session
+ * GET /api/quiz/:sessionId/questions
+ * Returns all questions for the session at once for local navigation
+ */
+async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): Promise<any> {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user?.id;
+
+    if (!sessionId) {
+      return res.status(400).json(formatErrorResponse('Session ID is required'));
+    }
+
+    // Verify session belongs to user
+    const session = await QuizSessionModel.getSession(sessionId);
+    if (!session || session.user_id !== userId) {
+      return res.status(404).json(formatErrorResponse('Session not found'));
+    }
+
+    if (session.status !== 'active') {
+      return res.status(400).json(formatErrorResponse('Session is not active'));
+    }
+
+    // Determine total questions based on session type
+    const maxQuestions = session.session_type === 'diagnostic' ? 44 : 20;
+
+    // Get all questions for this session (randomly selected, not based on adaptive algorithm)
+    // This allows for free navigation forward and backward
+    const questionsQuery = `
+      SELECT 
+        id, question_text, options, difficulty_rating, 
+        COALESCE(elo_rating, 1200) as elo_rating, 
+        question_type, category_id, correct_answer, explanation
+      FROM questions 
+      ORDER BY RANDOM() 
+      LIMIT $1
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery, [maxQuestions]);
+    const questions = questionsResult.rows;
+
+    if (questions.length === 0) {
+      return res.status(500).json(formatErrorResponse('No questions available'));
+    }
+
+    // Format questions with indices
+    const formattedQuestions = questions.map((q, index) => ({
+      id: q.id,
+      question_text: q.question_text,
+      options: q.options,
+      difficulty_rating: q.difficulty_rating,
+      elo_rating: q.elo_rating,
+      question_type: q.question_type,
+      category_id: q.category_id,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation,
+      questionNumber: index + 1,
+      totalQuestions: questions.length,
+      timeLimit: 120
+    }));
+
+    res.json(formatSuccessResponse('All questions retrieved', {
+      questions: formattedQuestions,
+      totalQuestions: formattedQuestions.length
+    }));
+
+  } catch (error) {
+    console.error('Error getting all questions:', error);
+    return res.status(500).json(formatErrorResponse('Failed to get questions'));
+  }
+}
+
+router.get('/:sessionId/questions', sessionParamValidation, handleGetAllQuestions);
+
 export default router;

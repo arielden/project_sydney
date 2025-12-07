@@ -231,16 +231,19 @@ class AdminService {
       }
     }
 
-    // Validate sort column
+    // Validate sort column - default to 'id' ascending
     const validSortColumn = sortColumn && columns.includes(sortColumn) 
       ? sortColumn 
-      : 'created_at';
+      : 'id';
+    
+    // Default sort direction to ASC for id column
+    const effectiveSortDirection = !sortColumn ? 'ASC' : sortDirection;
     
     // Check if sort column exists
     const hasSortColumn = schema.some(col => col.column_name === validSortColumn);
     const orderBy = hasSortColumn 
-      ? `ORDER BY ${validSortColumn} ${sortDirection}` 
-      : '';
+      ? `ORDER BY ${validSortColumn} ${effectiveSortDirection}` 
+      : 'ORDER BY id ASC';
 
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM ${tableName} ${whereClause}`;
@@ -536,6 +539,34 @@ class AdminService {
   }
 
   /**
+   * Get options from a table for dropdown menus
+   * Returns id and a display label (name, title, username, etc.)
+   */
+  async getTableOptions(tableName: string): Promise<any[]> {
+    if (!MANAGEABLE_TABLES.includes(tableName)) {
+      throw new Error(`Table '${tableName}' is not manageable`);
+    }
+
+    const schema = await this.getTableSchema(tableName);
+    
+    // Find a suitable label column
+    const labelColumn = schema.find(col => 
+      ['name', 'username', 'email', 'title', 'question_text', 'category'].includes(col.column_name)
+    );
+
+    const selectColumn = labelColumn ? labelColumn.column_name : 'id';
+
+    const query = `
+      SELECT id, ${selectColumn} as label 
+      FROM ${tableName} 
+      ORDER BY ${selectColumn}
+      LIMIT 100
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  /**
    * Get dashboard statistics
    */
   async getStats(): Promise<Record<string, any>> {
@@ -584,6 +615,7 @@ class AdminService {
     // Rating distribution
     const ratingStats = await pool.query(`
       SELECT 
+        COUNT(*) as total_ratings,
         AVG(overall_elo) as avg_rating,
         MIN(overall_elo) as min_rating,
         MAX(overall_elo) as max_rating

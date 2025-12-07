@@ -57,6 +57,8 @@ interface QuizState {
   // Session data
   currentSession: QuizSession | null;
   currentQuestion: Question | null;
+  questions: Question[]; // All questions for the session
+  currentQuestionIndex: number; // 0-indexed
   questionNumber: number;
   totalQuestions: number;
   
@@ -79,6 +81,8 @@ type QuizAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'START_QUIZ_SUCCESS'; payload: { session: QuizSession; question: Question; totalQuestions: number } }
+  | { type: 'LOAD_ALL_QUESTIONS'; payload: { questions: Question[]; totalQuestions: number } }
+  | { type: 'GO_TO_QUESTION'; payload: number }
   | { type: 'LOAD_QUESTION'; payload: Question }
   | { type: 'NO_MORE_QUESTIONS' }
   | { type: 'SUBMIT_ANSWER'; payload: QuizAnswer }
@@ -94,6 +98,8 @@ type QuizAction =
 const initialState: QuizState = {
   currentSession: null,
   currentQuestion: null,
+  questions: [],
+  currentQuestionIndex: 0,
   questionNumber: 0,
   totalQuestions: 0,
   answers: [],
@@ -119,6 +125,8 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
         ...state,
         currentSession: action.payload.session,
         currentQuestion: action.payload.question,
+        questions: [], // Will be populated by LOAD_ALL_QUESTIONS
+        currentQuestionIndex: 0,
         questionNumber: action.payload.question.questionNumber || 1,
         totalQuestions: action.payload.totalQuestions,
         answers: [],
@@ -127,6 +135,31 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
         isLoading: false,
         error: null,
         isMarkedForReview: false,
+      };
+    
+    case 'LOAD_ALL_QUESTIONS':
+      return {
+        ...state,
+        questions: action.payload.questions,
+        totalQuestions: action.payload.totalQuestions,
+        currentQuestion: action.payload.questions[0] || null,
+        currentQuestionIndex: 0,
+        questionNumber: 1,
+        isLoading: false,
+      };
+    
+    case 'GO_TO_QUESTION':
+      const newIndex = action.payload;
+      const targetQuestion = state.questions[newIndex];
+      if (!targetQuestion || newIndex < 0 || newIndex >= state.questions.length) {
+        return state;
+      }
+      return {
+        ...state,
+        currentQuestion: targetQuestion,
+        currentQuestionIndex: newIndex,
+        questionNumber: newIndex + 1,
+        isMarkedForReview: false, // Reset review state for new question
       };
       
     case 'LOAD_QUESTION':
@@ -213,6 +246,8 @@ interface QuizContextType {
   // State
   currentSession: QuizSession | null;
   currentQuestion: Question | null;
+  questions: Question[];
+  currentQuestionIndex: number;
   questionNumber: number;
   totalQuestions: number;
   answers: QuizAnswer[];
@@ -226,6 +261,8 @@ interface QuizContextType {
   
   // Functions
   startQuiz: (config: any) => Promise<string>;
+  loadAllQuestions: (sessionId: string) => Promise<void>;
+  goToQuestion: (index: number) => void;
   submitAnswer: (userAnswer: string, markedForReview?: boolean) => Promise<void>;
   nextQuestion: () => Promise<boolean>;
   getNextQuestion: () => Promise<void>;
@@ -272,6 +309,36 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, []);
+
+  // Load all questions for the session (for local navigation)
+  const loadAllQuestions = useCallback(async (sessionId: string): Promise<void> => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
+      const result = await quizService.getAllQuestions(sessionId);
+      
+      dispatch({
+        type: 'LOAD_ALL_QUESTIONS',
+        payload: {
+          questions: result.questions,
+          totalQuestions: result.totalQuestions
+        }
+      });
+    } catch (error: any) {
+      console.error('Error loading all questions:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to load questions' });
+      throw error;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  // Navigate to a specific question by index (0-indexed)
+  const goToQuestion = useCallback((index: number) => {
+    if (index >= 0 && index < state.questions.length) {
+      dispatch({ type: 'GO_TO_QUESTION', payload: index });
+    }
+  }, [state.questions.length]);
 
   // Exit quiz and abandon session
   const exitQuiz = useCallback(async (): Promise<void> => {
@@ -497,6 +564,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     // State
     currentSession: state.currentSession,
     currentQuestion: state.currentQuestion,
+    questions: state.questions,
+    currentQuestionIndex: state.currentQuestionIndex,
     questionNumber: state.questionNumber,
     totalQuestions: state.totalQuestions,
     answers: state.answers,
@@ -510,6 +579,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     
     // Functions
     startQuiz,
+    loadAllQuestions,
+    goToQuestion,
     submitAnswer,
     nextQuestion,
     getNextQuestion,

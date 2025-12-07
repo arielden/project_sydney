@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuiz } from '../contexts/QuizContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTimer } from '../hooks/useTimer';
-import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, Flag } from 'lucide-react';
+import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { QuestionNavigator } from '../components/quiz';
 
 // Memoized Header Component - prevents unnecessary re-renders
 const QuizHeader = memo(({ 
@@ -13,7 +14,7 @@ const QuizHeader = memo(({
   isPaused, 
   onPauseResume, 
   onExit, 
-  onComplete 
+  onComplete
 }: {
   sessionType: string;
   timeRemaining: number;
@@ -87,22 +88,18 @@ const QuizHeader = memo(({
 // Memoized Question Content - only re-renders when question changes
 const QuestionContent = memo(({ 
   questionNumber,
-  totalQuestions,
   currentQuestion,
   selectedAnswer,
   markedForReview,
   onAnswerSelect,
-  onToggleReview,
-  onNextQuestion
+  onToggleReview
 }: {
   questionNumber: number;
-  totalQuestions: number;
   currentQuestion: any;
   selectedAnswer: string;
   markedForReview: boolean;
   onAnswerSelect: (answer: string) => void;
   onToggleReview: () => void;
-  onNextQuestion: () => void;
 }) => (
   <div className="max-w-4xl mx-auto px-4">
     {/* Question Header */}
@@ -190,18 +187,18 @@ const QuizFooter = memo(({
   user,
   questionNumber,
   totalQuestions,
-  selectedAnswer,
   loading,
   onPreviousQuestion,
-  onNextQuestion
+  onNextQuestion,
+  onOpenNavigator
 }: {
   user: any;
   questionNumber: number;
   totalQuestions: number;
-  selectedAnswer: string;
   loading: boolean;
   onPreviousQuestion: () => void;
   onNextQuestion: () => void;
+  onOpenNavigator: () => void;
 }) => (
   <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-3">
     <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -215,11 +212,18 @@ const QuizFooter = memo(({
         </span>
       </div>
       
-      {/* Center: Question Counter */}
+      {/* Center: Question Counter - Clickable to open navigator */}
       <div className="flex-1 text-center">
-        <span className="bg-blue-primary text-white px-4 py-2 rounded text-sm font-medium">
-          Question {questionNumber} of {totalQuestions}
-        </span>
+        <button
+          onClick={onOpenNavigator}
+          className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors group"
+          title="Open Question Navigator"
+        >
+          <span className="text-sm font-medium text-gray-700">
+            Question {questionNumber} of {totalQuestions}
+          </span>
+          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-gray-700 transition-colors" />
+        </button>
       </div>
       
       {/* Right: Navigation Buttons */}
@@ -227,16 +231,20 @@ const QuizFooter = memo(({
         <button 
           onClick={onPreviousQuestion}
           disabled={questionNumber === 1}
-          className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
+          title="Go to previous question (←)"
+          className="flex items-center gap-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
         >
+          <ChevronLeft className="w-4 h-4" />
           Back
         </button>
         <button 
           onClick={onNextQuestion}
-          disabled={!selectedAnswer || loading}
-          className="px-6 py-2 bg-blue-primary text-white rounded hover:bg-blue-dark disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors font-medium"
+          disabled={loading}
+          title="Go to next question (→)"
+          className="flex items-center gap-1 px-4 py-2 bg-blue-primary text-white rounded-lg hover:bg-blue-dark disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors font-medium"
         >
-          {loading ? 'Submitting...' : (questionNumber === totalQuestions ? 'Finish' : 'Next')}
+          {loading ? 'Saving...' : (questionNumber === totalQuestions ? 'Finish' : 'Next')}
+          {!loading && questionNumber !== totalQuestions && <ChevronRight className="w-4 h-4" />}
         </button>
       </div>
     </div>
@@ -249,11 +257,15 @@ export default function QuizPage() {
   const { user } = useAuth();
   const { 
     currentSession, 
-    currentQuestion, 
+    currentQuestion,
+    questions,
+    currentQuestionIndex,
     questionNumber,
     totalQuestions,
     loading, 
     error,
+    loadAllQuestions,
+    goToQuestion,
     nextQuestion, 
     submitAnswer,
     pauseQuiz,
@@ -266,32 +278,69 @@ export default function QuizPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [markedForReview, setMarkedForReview] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const questionStartTimeRef = useRef<number>(0);
-  const currentQuestionTimeRef = useRef<number>(0);
+  const [isNavigatorOpen, setIsNavigatorOpen] = useState(false);
+  const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
+  const [reviewQuestions, setReviewQuestions] = useState<Set<number>>(new Set());
+  const [questionAnswers, setQuestionAnswers] = useState<Map<number, string>>(new Map());
+  
+  // Per-question time tracking
+  const [questionTimes, setQuestionTimes] = useState<Map<number, number>>(new Map());
+  const questionStartTimeRef = useRef<number>(Date.now());
+  const currentQuestionIndexRef = useRef<number>(0);
   const sessionId = searchParams.get('sessionId');
 
   // Main countdown timer for entire exam (35 minutes = 2100 seconds)
+  // This timer runs continuously regardless of question navigation
   const { time: timeRemaining, formatTime, isPaused, pause, resume, start, isRunning } = useTimer({
     initialTime: 2100, // 35 minutes countdown
-    onTick: (currentTime) => {
-      // Timer automatically counts down
+    onTick: () => {
+      // Timer automatically counts down - no action needed
     },
     onTimeUp: () => {
       // Auto-submit quiz when time is up
+      saveCurrentQuestionTime();
       completeQuiz();
     }
   });
 
-  // Track question timing separately
-  useEffect(() => {
-    let interval: number;
-    if (isRunning && !isPaused && currentQuestion) {
-      interval = setInterval(() => {
-        currentQuestionTimeRef.current = currentQuestionTimeRef.current + 1;
-      }, 1000);
+  // Function to save time spent on current question
+  const saveCurrentQuestionTime = useCallback(() => {
+    if (questionStartTimeRef.current && !isPaused) {
+      const timeSpentNow = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
+      const questionIndex = currentQuestionIndexRef.current;
+      
+      setQuestionTimes(prev => {
+        const updated = new Map(prev);
+        const existingTime = updated.get(questionIndex) || 0;
+        updated.set(questionIndex, existingTime + timeSpentNow);
+        return updated;
+      });
     }
-    return () => clearInterval(interval);
-  }, [isRunning, isPaused, currentQuestion]);
+  }, [isPaused]);
+
+  // Track when question changes to save time and restart timer
+  useEffect(() => {
+    if (currentQuestion && questionNumber > 0) {
+      const newQuestionIndex = questionNumber - 1;
+      
+      // If we're switching questions, save time for the previous question
+      if (currentQuestionIndexRef.current !== newQuestionIndex && questionStartTimeRef.current) {
+        const timeSpentOnPrevious = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
+        const prevIndex = currentQuestionIndexRef.current;
+        
+        setQuestionTimes(prev => {
+          const updated = new Map(prev);
+          const existingTime = updated.get(prevIndex) || 0;
+          updated.set(prevIndex, existingTime + timeSpentOnPrevious);
+          return updated;
+        });
+      }
+      
+      // Update current question index and restart timer
+      currentQuestionIndexRef.current = newQuestionIndex;
+      questionStartTimeRef.current = Date.now();
+    }
+  }, [questionNumber, currentQuestion]);
 
   useEffect(() => {
     if (!sessionId || !currentSession) {
@@ -304,81 +353,161 @@ export default function QuizPage() {
       return;
     }
 
+    // Load all questions for the session if not already loaded
+    if (currentSession && questions.length === 0) {
+      loadAllQuestions(sessionId).catch(err => {
+        console.error('Failed to load all questions:', err);
+      });
+    }
+
     // Start the countdown timer when quiz is active
     if (currentSession && !isRunning && !isPaused) {
       start();
       questionStartTimeRef.current = Date.now();
-      currentQuestionTimeRef.current = 0;
     }
     
-    // Set initial loading to false once we have a session and question
-    if (currentSession && currentQuestion && isInitialLoading) {
+    // Set initial loading to false once we have a session and questions
+    if (currentSession && questions.length > 0 && isInitialLoading) {
       setIsInitialLoading(false);
     }
-  }, [sessionId, currentSession, navigate, isRunning, isPaused, start, currentQuestion, isInitialLoading]);
+  }, [sessionId, currentSession, navigate, isRunning, isPaused, start, questions, isInitialLoading, loadAllQuestions]);
 
   const handleAnswerSelect = useCallback((answerId: string) => {
     setSelectedAnswer(answerId);
-  }, []);
+    // Auto-save answer to local state when selected
+    const questionIndex = questionNumber - 1;
+    setQuestionAnswers(prev => new Map(prev).set(questionIndex, answerId));
+  }, [questionNumber]);
 
   const handleNextQuestion = useCallback(async () => {
-    if (!selectedAnswer) {
-      alert('Please select an answer before proceeding.');
+    const questionIndex = questionNumber - 1;
+    
+    // Save time for current question before navigating
+    saveCurrentQuestionTime();
+    
+    // If an answer is selected, save it locally
+    if (selectedAnswer) {
+      // Track this question as answered
+      setAnsweredQuestions(prev => new Set(prev).add(questionIndex));
+      setQuestionAnswers(prev => new Map(prev).set(questionIndex, selectedAnswer));
+      
+      // Submit answer to backend
+      try {
+        const timeSpent = questionTimes.get(questionIndex) || 0;
+        setTimeElapsed(timeSpent);
+        await submitAnswer(selectedAnswer, markedForReview);
+      } catch (error) {
+        console.error('Error submitting answer:', error);
+      }
+    }
+    
+    // Check if we're on the last question
+    if (questionNumber === totalQuestions) {
+      // On last question, require an answer to finish
+      if (!selectedAnswer) {
+        alert('Please select an answer before finishing the quiz.');
+        return;
+      }
+      // Quiz completed
+      navigate(`/quiz/results/${sessionId}`);
       return;
     }
-
-    try {
-      // Update quiz context with current question time before submitting
-      setTimeElapsed(currentQuestionTimeRef.current);
-      await submitAnswer(selectedAnswer, markedForReview);
+    
+    // Navigate to next question locally
+    const nextIndex = questionIndex + 1;
+    if (nextIndex < questions.length) {
+      goToQuestion(nextIndex);
       
-      const hasNext = await nextQuestion();
-      if (!hasNext) {
-        // Quiz completed
-        navigate(`/quiz/results/${sessionId}`);
-      } else {
-        // Reset for next question
-        setSelectedAnswer('');
-        setMarkedForReview(false);
-        questionStartTimeRef.current = Date.now();
-        currentQuestionTimeRef.current = 0; // Reset question timer only
+      // Restore previous answer if exists
+      const savedAnswer = questionAnswers.get(nextIndex);
+      setSelectedAnswer(savedAnswer || '');
+      
+      // Restore review flag for next question
+      setMarkedForReview(reviewQuestions.has(nextIndex));
+      
+      // Reset question timer for new question
+      questionStartTimeRef.current = Date.now();
+    } else {
+      // No more questions locally, try to get from backend (fallback)
+      try {
+        const hasNext = await nextQuestion();
+        if (!hasNext) {
+          navigate(`/quiz/results/${sessionId}`);
+        } else {
+          const nextQuestionIndex = questionNumber;
+          const savedAnswer = questionAnswers.get(nextQuestionIndex);
+          setSelectedAnswer(savedAnswer || '');
+          setMarkedForReview(reviewQuestions.has(nextQuestionIndex));
+          questionStartTimeRef.current = Date.now();
+        }
+      } catch (error) {
+        console.error('Error getting next question:', error);
       }
-    } catch (error) {
-      // Error is handled by QuizContext
     }
-  }, [selectedAnswer, setTimeElapsed, submitAnswer, markedForReview, nextQuestion, navigate, sessionId]);
+  }, [selectedAnswer, questionNumber, totalQuestions, saveCurrentQuestionTime, questionTimes, setTimeElapsed, submitAnswer, markedForReview, questions, goToQuestion, questionAnswers, reviewQuestions, nextQuestion, navigate, sessionId]);
 
   const handlePreviousQuestion = useCallback(() => {
-    // For now, we'll just show an alert since we need to implement navigation history
-    alert('Previous question navigation will be implemented in the next version.');
-  }, []);
+    // Save time for current question before navigating
+    saveCurrentQuestionTime();
+    
+    // Save current answer if one is selected (but don't submit to backend yet)
+    if (selectedAnswer) {
+      const questionIndex = questionNumber - 1;
+      setQuestionAnswers(prev => new Map(prev).set(questionIndex, selectedAnswer));
+      setAnsweredQuestions(prev => new Set(prev).add(questionIndex));
+    }
+    
+    // Navigate to previous question locally
+    const prevIndex = currentQuestionIndex - 1;
+    if (prevIndex >= 0) {
+      goToQuestion(prevIndex);
+      
+      // Restore previous answer if exists
+      const savedAnswer = questionAnswers.get(prevIndex);
+      setSelectedAnswer(savedAnswer || '');
+      
+      // Restore review flag for previous question
+      setMarkedForReview(reviewQuestions.has(prevIndex));
+      
+      // Reset question timer for new question
+      questionStartTimeRef.current = Date.now();
+    }
+  }, [selectedAnswer, questionNumber, currentQuestionIndex, saveCurrentQuestionTime, goToQuestion, questionAnswers, reviewQuestions]);
 
   const handlePauseResume = useCallback(async () => {
     try {
       if (isPaused) {
         await resumeQuiz();
         resume();
+        // Restart question timer after resume
+        questionStartTimeRef.current = Date.now();
       } else {
+        // Save question time before pausing
+        saveCurrentQuestionTime();
         await pauseQuiz();
         pause();
       }
     } catch (error) {
       // Error is handled by QuizContext
     }
-  }, [isPaused, resumeQuiz, resume, pauseQuiz, pause]);
+  }, [isPaused, resumeQuiz, resume, saveCurrentQuestionTime, pauseQuiz, pause]);
 
   const handleCompleteQuiz = useCallback(async () => {
     try {
+      // Save current question time before completing
+      saveCurrentQuestionTime();
       await completeQuiz();
       navigate(`/quiz/results/${sessionId}`);
     } catch (error) {
       // Error is handled by QuizContext
     }
-  }, [completeQuiz, navigate, sessionId]);
+  }, [saveCurrentQuestionTime, completeQuiz, navigate, sessionId]);
 
   const handleExitQuiz = useCallback(async () => {
     if (window.confirm('Are you sure you want to exit? Your progress will be lost.')) {
       try {
+        // Save current question time before exiting
+        saveCurrentQuestionTime();
         await exitQuiz();
         navigate('/dashboard');
       } catch (error) {
@@ -387,13 +516,104 @@ export default function QuizPage() {
         navigate('/dashboard');
       }
     }
-  }, [exitQuiz, navigate]);
+  }, [saveCurrentQuestionTime, exitQuiz, navigate]);
 
   const handleToggleReview = useCallback(() => {
-    setMarkedForReview(!markedForReview);
-  }, [markedForReview]);
+    const newMarkedForReview = !markedForReview;
+    setMarkedForReview(newMarkedForReview);
+    
+    // Update the review questions set (questionNumber is 1-indexed, we use 0-indexed)
+    const questionIndex = questionNumber - 1;
+    setReviewQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newMarkedForReview) {
+        newSet.add(questionIndex);
+      } else {
+        newSet.delete(questionIndex);
+      }
+      return newSet;
+    });
+  }, [markedForReview, questionNumber]);
 
-  if (isInitialLoading || (loading && !currentQuestion)) {
+  // Navigator handlers
+  const handleOpenNavigator = useCallback(() => {
+    setIsNavigatorOpen(true);
+  }, []);
+
+  const handleCloseNavigator = useCallback(() => {
+    setIsNavigatorOpen(false);
+  }, []);
+
+  const handleNavigateToQuestion = useCallback((index: number) => {
+    // Save time for current question before navigating
+    saveCurrentQuestionTime();
+    
+    // Save current answer if one is selected
+    if (selectedAnswer) {
+      const currentIndex = questionNumber - 1;
+      setQuestionAnswers(prev => new Map(prev).set(currentIndex, selectedAnswer));
+      setAnsweredQuestions(prev => new Set(prev).add(currentIndex));
+    }
+    
+    // Navigate to the selected question
+    if (index >= 0 && index < questions.length) {
+      goToQuestion(index);
+      
+      // Restore previous answer if exists
+      const savedAnswer = questionAnswers.get(index);
+      setSelectedAnswer(savedAnswer || '');
+      
+      // Restore review flag
+      setMarkedForReview(reviewQuestions.has(index));
+      
+      // Reset question timer
+      questionStartTimeRef.current = Date.now();
+      
+      // Close the navigator modal
+      setIsNavigatorOpen(false);
+    }
+  }, [selectedAnswer, questionNumber, saveCurrentQuestionTime, questions.length, goToQuestion, questionAnswers, reviewQuestions]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input or if quiz is paused
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement ||
+        isPaused ||
+        isNavigatorOpen
+      ) {
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          handlePreviousQuestion();
+          break;
+        case 'ArrowRight':
+          handleNextQuestion();
+          break;
+        case 'r':
+        case 'R':
+          if (!e.ctrlKey && !e.metaKey) {
+            handleToggleReview();
+          }
+          break;
+        case 'g':
+        case 'G':
+          if (!e.ctrlKey && !e.metaKey) {
+            setIsNavigatorOpen(true);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isPaused, isNavigatorOpen, handlePreviousQuestion, handleNextQuestion, handleToggleReview]);
+
+  if (isInitialLoading || (loading && questions.length === 0)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -459,6 +679,17 @@ export default function QuizPage() {
         onComplete={handleCompleteQuiz}
       />
 
+      {/* Question Navigator Modal */}
+      <QuestionNavigator
+        isOpen={isNavigatorOpen}
+        onClose={handleCloseNavigator}
+        currentQuestionIndex={currentQuestionIndex}
+        totalQuestions={questions.length || totalQuestions}
+        answeredQuestions={answeredQuestions}
+        reviewQuestions={reviewQuestions}
+        onQuestionSelect={handleNavigateToQuestion}
+      />
+
       {/* Pause Overlay */}
       {isPaused && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
@@ -480,13 +711,11 @@ export default function QuizPage() {
       <main className="flex-1 pt-32 pb-20 overflow-y-auto relative quiz-main">
         <QuestionContent 
           questionNumber={questionNumber}
-          totalQuestions={totalQuestions}
           currentQuestion={currentQuestion}
           selectedAnswer={selectedAnswer}
           markedForReview={markedForReview}
           onAnswerSelect={handleAnswerSelect}
           onToggleReview={handleToggleReview}
-          onNextQuestion={handleNextQuestion}
         />
       </main>
 
@@ -494,11 +723,11 @@ export default function QuizPage() {
       <QuizFooter 
         user={user}
         questionNumber={questionNumber}
-        totalQuestions={totalQuestions}
-        selectedAnswer={selectedAnswer}
+        totalQuestions={questions.length || totalQuestions}
         loading={loading}
         onPreviousQuestion={handlePreviousQuestion}
         onNextQuestion={handleNextQuestion}
+        onOpenNavigator={handleOpenNavigator}
       />
     </div>
   );

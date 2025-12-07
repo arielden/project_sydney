@@ -7,7 +7,7 @@ import AdminLayout from '../../components/admin/AdminLayout';
 import { toast } from 'react-hot-toast';
 
 interface ForeignKeyOption {
-  value: number;
+  value: number | string;
   label: string;
 }
 
@@ -68,6 +68,21 @@ const AdminRecordForm: React.FC = () => {
       fkResults.forEach(({ column, options }) => {
         fkOptionsMap[column] = options;
       });
+      
+      // Special handling: Load question_type options from question_types table
+      if (tableName === 'questions') {
+        try {
+          const questionTypeOptions = await adminService.getForeignKeyOptions('question_types');
+          // Map to use 'name' field as both value and label
+          fkOptionsMap['question_type'] = questionTypeOptions.map(opt => ({
+            value: opt.label, // Use the name as the value (not the id)
+            label: opt.label
+          }));
+        } catch {
+          console.log('Could not load question_type options');
+        }
+      }
+      
       setForeignKeyOptions(fkOptionsMap);
       
       return schemaData;
@@ -186,13 +201,25 @@ const AdminRecordForm: React.FC = () => {
     const isReadOnly = column.isPrimaryKey || 
                        ['created_at', 'updated_at', 'password_hash'].includes(column.name);
     
-    // Check if this is a foreign key field
+    // Check if this is a foreign key field or has dropdown options
     if (foreignKeyOptions[column.name] && foreignKeyOptions[column.name].length > 0) {
+      // Determine if we should parse as int (for _id fields) or keep as string
+      const isIntegerField = column.name.endsWith('_id');
+      
       return (
         <select
           id={column.name}
           value={value as string || ''}
-          onChange={(e) => handleChange(column.name, e.target.value ? parseInt(e.target.value) : null)}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            if (!newValue) {
+              handleChange(column.name, null);
+            } else if (isIntegerField) {
+              handleChange(column.name, parseInt(newValue));
+            } else {
+              handleChange(column.name, newValue);
+            }
+          }}
           disabled={isReadOnly}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
         >
