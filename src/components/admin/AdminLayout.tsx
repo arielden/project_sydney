@@ -144,7 +144,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 ml-64 p-8">
+        <main className="flex-1 ml-64 p-8 overflow-x-hidden max-w-full">
           {/* Breadcrumbs */}
           <nav className="flex mb-6" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-2">

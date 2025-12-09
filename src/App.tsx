@@ -19,7 +19,7 @@ import QuizResultsPage from './pages/QuizResultsPage';
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminTables from './pages/admin/AdminTables';
-import AdminTableDetail from './pages/admin/AdminTableDetail';
+import AdminTableDetail from './pages/admin/AdminTableDetailMUI';
 import AdminRecordForm from './pages/admin/AdminRecordForm';
 import AdminActivityLog from './pages/admin/AdminActivityLog';
 

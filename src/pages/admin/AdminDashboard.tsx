@@ -11,12 +11,11 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { adminService } from '../../services/adminService';
-import type { AdminStats, AdminActivity } from '../../services/adminService';
+import type { AdminStats } from '../../services/adminService';
 import AdminLayout from '../../components/admin/AdminLayout';
 
 const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<AdminActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,12 +23,8 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [statsData, activityData] = await Promise.all([
-        adminService.getStats(),
-        adminService.getRecentActivity(10)
-      ]);
+      const statsData = await adminService.getStats();
       setStats(statsData);
-      setRecentActivity(activityData);
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error(err);
@@ -44,19 +39,6 @@ const AdminDashboard: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
-  };
-
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'CREATE':
-        return 'text-green-600 bg-green-100';
-      case 'UPDATE':
-        return 'text-blue-600 bg-blue-100';
-      case 'DELETE':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
   };
 
   const statCards = stats ? [
@@ -197,55 +179,6 @@ const AdminDashboard: React.FC = () => {
                   <ArrowRight className="w-4 h-4 text-gray-400" />
                 </Link>
               </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Recent Admin Activity
-                </h2>
-                <Link 
-                  to="/admin/activity" 
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  View All
-                </Link>
-              </div>
-              
-              {recentActivity.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No recent activity</p>
-              ) : (
-                <div className="space-y-3">
-                  {recentActivity.map((activity) => (
-                    <div 
-                      key={activity.id}
-                      className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getActionColor(activity.action)}`}>
-                          {activity.action}
-                        </span>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {activity.table_name}
-                            {activity.record_id && (
-                              <span className="text-gray-500 ml-1">#{activity.record_id}</span>
-                            )}
-                          </p>
-                          {activity.admin_email && (
-                            <p className="text-sm text-gray-500">by {activity.admin_email}</p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {formatDate(activity.created_at)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Database Statistics */}

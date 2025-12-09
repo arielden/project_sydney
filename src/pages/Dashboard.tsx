@@ -22,7 +22,7 @@ export default function Dashboard() {
               <BookOpen className="h-8 w-8 text-blue-light" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-xl shadow-card">
             <div className="flex items-center justify-between">
               <div>
@@ -32,7 +32,7 @@ export default function Dashboard() {
               <TrendingUp className="h-8 w-8 text-blue-light" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-xl shadow-card">
             <div className="flex items-center justify-between">
               <div>
@@ -42,11 +42,11 @@ export default function Dashboard() {
               <Award className="h-8 w-8 text-blue-light" />
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-xl shadow-card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">ELO Rating</p>
+                <p className="text-gray-500 text-sm font-medium">SAT Rating</p>
                 <p className="text-2xl font-bold text-blue-primary">1342</p>
               </div>
               <Users className="h-8 w-8 text-blue-light" />
@@ -59,14 +59,14 @@ export default function Dashboard() {
           <div className="bg-white p-6 rounded-xl shadow-card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Continue Practice</h2>
             <p className="text-gray-600 mb-6">Resume your adaptive learning session</p>
-            <Link 
-              to="/quiz/start" 
+            <Link
+              to="/quiz/start"
               className="inline-flex items-center px-6 py-3 bg-blue-primary text-white rounded-lg hover:bg-blue-dark transition-colors font-medium"
             >
               Start Practice
             </Link>
           </div>
-          
+
           <div className="bg-white p-6 rounded-xl shadow-card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Diagnostic Assessment</h2>
             <p className="text-gray-600 mb-6">Take a 44-question diagnostic to update your skill ratings</p>

@@ -31,11 +31,31 @@ CREATE TABLE player_ratings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Question Types Table
+-- Defines the different types/categories of SAT math questions
+CREATE TABLE question_types (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category_id VARCHAR(50),
+    difficulty_level VARCHAR(20),
+    is_active BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT question_types_name_unique UNIQUE (name),
+    CONSTRAINT question_types_difficulty_check CHECK (
+        difficulty_level IN ('easy', 'medium', 'hard', 'mixed') OR difficulty_level IS NULL
+    )
+);
+
 -- Questions Table
 -- Stores all SAT math questions with difficulty ratings and metadata
 CREATE TABLE questions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     question_type VARCHAR(100) NOT NULL,
+    question_type_id VARCHAR(50),
     question_text TEXT NOT NULL,
     options JSONB NOT NULL, -- Array of answer options with labels
     correct_answer VARCHAR(10) NOT NULL,
@@ -48,7 +68,8 @@ CREATE TABLE questions (
     is_diagnostic BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (stem_id) REFERENCES questions(id) ON DELETE SET NULL
+    FOREIGN KEY (stem_id) REFERENCES questions(id) ON DELETE SET NULL,
+    FOREIGN KEY (question_type_id) REFERENCES question_types(id) ON DELETE SET NULL
 );
 
 -- Quiz_Sessions Table
@@ -87,7 +108,11 @@ CREATE TABLE question_attempts (
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_player_ratings_user_id ON player_ratings(user_id);
+CREATE INDEX idx_question_types_category ON question_types(category_id);
+CREATE INDEX idx_question_types_active ON question_types(is_active);
+CREATE INDEX idx_question_types_display_order ON question_types(display_order);
 CREATE INDEX idx_questions_type ON questions(question_type);
+CREATE INDEX idx_questions_type_id ON questions(question_type_id);
 CREATE INDEX idx_questions_difficulty ON questions(difficulty_rating);
 CREATE INDEX idx_questions_stem_id ON questions(stem_id);
 CREATE INDEX idx_quiz_sessions_user_id ON quiz_sessions(user_id);
@@ -112,12 +137,16 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 CREATE TRIGGER update_player_ratings_updated_at BEFORE UPDATE ON player_ratings 
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
+CREATE TRIGGER update_question_types_updated_at BEFORE UPDATE ON question_types 
+    FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE TRIGGER update_questions_updated_at BEFORE UPDATE ON questions 
     FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- Comments for documentation
 COMMENT ON TABLE users IS 'User accounts and profile information';
 COMMENT ON TABLE player_ratings IS 'ELO ratings and performance metrics for users';
+COMMENT ON TABLE question_types IS 'Categories and types of SAT math questions';
 COMMENT ON TABLE questions IS 'SAT math questions with difficulty ratings and metadata';
 COMMENT ON TABLE quiz_sessions IS 'User practice and diagnostic sessions';
 COMMENT ON TABLE question_attempts IS 'Individual question attempts with rating changes';
