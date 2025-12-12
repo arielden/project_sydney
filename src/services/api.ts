@@ -61,7 +61,7 @@ export interface RegisterData {
  */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  timeout: 10000,
+  timeout: 30000, // 30 seconds - increased from 10s for slow operations like registration
   headers: {
     'Content-Type': 'application/json',
   },

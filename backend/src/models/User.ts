@@ -63,8 +63,11 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
     const result: QueryResult = await pool.query(query, values);
     const user = result.rows[0];
 
-    // Create initial player rating
-    await createInitialPlayerRating(user.id);
+    // Create initial player rating asynchronously (fire and forget)
+    // Don't await this to speed up registration response
+    createInitialPlayerRating(user.id).catch(err => {
+      console.error('Failed to create initial player rating:', err);
+    });
 
     return user;
   } catch (error: any) {
