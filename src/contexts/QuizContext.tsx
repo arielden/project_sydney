@@ -263,7 +263,7 @@ interface QuizContextType {
   startQuiz: (config: any) => Promise<string>;
   loadAllQuestions: (sessionId: string) => Promise<void>;
   goToQuestion: (index: number) => void;
-  submitAnswer: (userAnswer: string, markedForReview?: boolean) => Promise<void>;
+  submitAnswer: (userAnswer: string, markedForReview?: boolean) => Promise<any>;
   nextQuestion: () => Promise<boolean>;
   getNextQuestion: () => Promise<void>;
   pauseQuiz: () => Promise<void>;
@@ -364,7 +364,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   }, [state.currentSession]);
 
   // Submit an answer
-  const submitAnswer = useCallback(async (userAnswer: string, markedForReview: boolean = false) => {
+  const submitAnswer = useCallback(async (userAnswer: string, _markedForReview: boolean = false) => {
     try {
       if (!state.currentSession) {
         throw new Error('No active quiz session');

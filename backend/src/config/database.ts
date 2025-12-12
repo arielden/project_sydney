@@ -6,17 +6,58 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// Database configuration
-const dbConfig: PoolConfig = {
-  host: process.env.DB_HOST || 'postgres',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'sydney_db',
-  user: process.env.DB_USER || 'admin',
-  password: process.env.DB_PASSWORD || 'admin123',
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close clients after 30 seconds of inactivity
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
-};
+// Database configuration - supports both TCP and Unix socket connections
+let dbConfig: PoolConfig;
+
+// Determine connection method based on environment
+const dbHost = process.env.DB_HOST;
+const useUnixSocket = dbHost?.startsWith('/cloudsql/') || dbHost?.startsWith('/');
+const isCloudRun = !!process.env.K_SERVICE; // Cloud Run sets K_SERVICE
+
+console.log('🔧 Database Config Debug:');
+console.log(`  DB_HOST: ${dbHost}`);
+console.log(`  Available env vars: ${Object.keys(process.env).filter(k => k.includes('DB') || k.includes('CLOUD')).join(', ')}`);
+console.log(`  NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`  useUnixSocket: ${useUnixSocket}`);
+console.log(`  isCloudRun: ${isCloudRun}`);
+
+if (useUnixSocket) {
+  // Cloud SQL connection via Unix socket
+  const socketPath = dbHost || '/cloudsql/project-sidney-prod:us-central1:sydney-postgres';
+  console.log(`  ✓ Using Unix socket: ${socketPath}`);
+  
+  dbConfig = {
+    host: socketPath,
+    database: process.env.DB_NAME || 'sydney_db',
+    user: process.env.DB_USER || 'sydney_user',
+    password: process.env.DB_PASSWORD || 'Sydney2024SecurePass!',
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  };
+} else if (process.env.DATABASE_URL) {
+  // Connection string format
+  console.log(`  ✓ Using DATABASE_URL connection string`);
+  dbConfig = {
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  };
+} else {
+  // TCP connection (local development)
+  console.log(`  ✓ Using TCP connection`);
+  dbConfig = {
+    host: dbHost || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'sydney_db',
+    user: process.env.DB_USER || 'sydney_user',
+    password: process.env.DB_PASSWORD || 'Sydney2024SecurePass!',
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  };
+}
 
 // Create connection pool
 const pool = new Pool(dbConfig);

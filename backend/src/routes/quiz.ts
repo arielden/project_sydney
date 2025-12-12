@@ -717,13 +717,14 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
 
     // Get all questions for this session (randomly selected, not based on adaptive algorithm)
     // This allows for free navigation forward and backward
+    // Use DISTINCT ON to ensure no duplicate questions
     const questionsQuery = `
-      SELECT 
-        id, question_text, options, difficulty_rating, 
-        COALESCE(elo_rating, 1200) as elo_rating, 
-        question_type, category_id, correct_answer, explanation
-      FROM questions 
-      ORDER BY RANDOM() 
+      SELECT DISTINCT ON(q.id)
+        q.id, q.question_text, q.options, q.difficulty_rating, 
+        COALESCE(q.elo_rating, 1200) as elo_rating, 
+        q.question_type, q.category_id, q.correct_answer, q.explanation
+      FROM questions q
+      ORDER BY q.id, RANDOM() 
       LIMIT $1
     `;
     

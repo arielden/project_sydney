@@ -4,7 +4,7 @@ import { useQuiz } from '../contexts/QuizContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTimer } from '../hooks/useTimer';
 import { quizService } from '../services/quizService';
-import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Flag } from 'lucide-react';
+import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { QuestionNavigator } from '../components/quiz';
 
 // Memoized Header Component - prevents unnecessary re-renders
@@ -268,12 +268,10 @@ export default function QuizPage() {
     loadAllQuestions,
     goToQuestion,
     nextQuestion, 
-    submitAnswer,
     pauseQuiz,
     resumeQuiz,
     completeQuiz,
-    exitQuiz,
-    setTimeElapsed
+    exitQuiz
   } = useQuiz();
   
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -291,6 +289,7 @@ export default function QuizPage() {
   const [questionTimes, setQuestionTimes] = useState<Map<number, number>>(new Map());
   const questionStartTimeRef = useRef<number>(Date.now());
   const currentQuestionIndexRef = useRef<number>(0);
+  const questionsLoadingRef = useRef<boolean>(false); // Prevent multiple load attempts
   const sessionId = searchParams.get('sessionId');
 
   // Main countdown timer for entire exam (35 minutes = 2100 seconds)
@@ -358,7 +357,9 @@ export default function QuizPage() {
     }
 
     // Load all questions for the session if not already loaded
-    if (currentSession && questions.length === 0) {
+    // Use ref to prevent multiple load attempts
+    if (currentSession && questions.length === 0 && !questionsLoadingRef.current) {
+      questionsLoadingRef.current = true;
       loadAllQuestions(sessionId).catch(err => {
         console.error('Failed to load all questions:', err);
       });
@@ -374,7 +375,7 @@ export default function QuizPage() {
     if (currentSession && questions.length > 0 && isInitialLoading) {
       setIsInitialLoading(false);
     }
-  }, [sessionId, currentSession, navigate, isRunning, isPaused, start, questions, isInitialLoading, loadAllQuestions]);
+  }, [sessionId, currentSession, navigate, isRunning, isPaused, start, questions.length, isInitialLoading, loadAllQuestions]);
 
   const handleAnswerSelect = useCallback((answerId: string) => {
     setSelectedAnswer(answerId);
@@ -539,11 +540,18 @@ export default function QuizPage() {
       saveCurrentQuestionTime();
       
       // Submit all answers to the backend directly
-      for (const [index, answer] of questionAnswers.entries()) {
+      // Mark questions as being submitted to prevent race conditions
+      const quetsToSubmit = Array.from(questionAnswers.entries())
+        .filter(([index]) => !submittedQuestions.has(index));
+      
+      for (const [index, answer] of quetsToSubmit) {
         try {
           const question = questions[index];
-          if (question && !submittedQuestions.has(index)) {
+          if (question) {
             const timeSpent = questionTimes.get(index) || 30; // Default to 30 seconds if no time tracked
+            
+            // Mark as submitted immediately to prevent duplicates in race conditions
+            setSubmittedQuestions(prev => new Set(prev).add(index));
             
             // Submit directly to quizService to avoid currentQuestion dependency
             await quizService.submitAnswer(
@@ -552,12 +560,16 @@ export default function QuizPage() {
               answer,
               timeSpent
             );
-            
-            setSubmittedQuestions(prev => new Set(prev).add(index));
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Error submitting answer for question ${index + 1}:`, error);
-          // Continue submitting other answers even if one fails
+          // If it's "already answered" error, it's fine - just skip it
+          if (error.message?.includes('already answered')) {
+            console.log(`Question ${index + 1} was already submitted, skipping...`);
+          } else {
+            // For other errors, still mark as submitted to avoid retrying
+            throw error;
+          }
         }
       }
       

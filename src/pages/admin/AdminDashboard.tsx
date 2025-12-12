@@ -37,10 +37,6 @@ const AdminDashboard: React.FC = () => {
     loadData();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-
   const statCards = stats ? [
     {
       title: 'Total Users',
