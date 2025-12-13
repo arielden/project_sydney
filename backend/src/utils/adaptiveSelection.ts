@@ -48,7 +48,7 @@ class AdaptiveSelectionService {
     try {
       // Get user's overall rating
       const userRatingQuery = `
-        SELECT overall_elo, times_played 
+        SELECT overall_elo, games_played AS times_played 
         FROM player_ratings 
         WHERE user_id = $1
       `;

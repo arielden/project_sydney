@@ -28,7 +28,7 @@ const Header = () => {
               to="/" 
               className="text-2xl font-bold text-blue-primary hover:text-blue-dark transition-colors duration-200"
             >
-              Sydney
+              Sopharium
             </Link>
           </div>
 

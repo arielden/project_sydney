@@ -136,7 +136,152 @@ export interface QuizResults {
   };
 }
 
-// -----------------------------------------------------------------------------
+// ============================================================================
+// ELO Rating System Types (Phase 3)
+// ============================================================================
+
+export interface PlayerRating {
+  userId: string;
+  overallElo: number;
+  kFactor: number;
+  gamesPlayed: number;
+  confidenceLevel: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MicroRatingCategory {
+  categoryId: string;
+  categoryName: string;
+  eloRating: number;
+  attempts: number;
+  correctCount?: number;
+  successRate?: number;
+  lastUpdated?: string;
+}
+
+export interface MicroRating {
+  category: string;
+  eloRating: number;
+  attempts: number;
+  successRate?: number;
+  correctCount?: number;
+  categoryName?: string;
+}
+
+export interface QuestionWithELO extends Question {
+  eloRating: number;
+  reliability: number;
+  timesRated: number;
+  expectedScore?: number;
+  appropriatenessScore?: number;
+}
+
+export interface ELOCalculationResult {
+  playerNewRating: number;
+  questionNewRating: number;
+  expectedScore: number;
+  actualScore: number;
+  playerEloChange: number;
+  questionEloChange: number;
+  playerNewKFactor: number;
+  questionNewKFactor: number;
+}
+
+export interface PerformanceAnalytics {
+  overallStats: {
+    totalQuestionsAnswered: number;
+    totalCorrect: number;
+    overallAccuracy: number;
+    avgTimePerQuestion: number;
+    firstAttempt?: string;
+    lastAttempt?: string;
+  };
+  performanceByCategory: Array<{
+    questionType: string;
+    categoryId: string;
+    totalAttempts: number;
+    correctAttempts: number;
+    accuracyPercentage: number;
+    avgTimeSpent: number;
+    avgPlayerRating: number;
+    avgQuestionDifficulty: number;
+    avgRatingChange: number;
+    currentMicroRating: number;
+  }>;
+  eloProgression: Array<{
+    answeredAt: string;
+    isCorrect: boolean;
+    playerRatingBefore: number;
+    playerRatingAfter: number;
+    ratingChange: number;
+    questionType: string;
+    categoryId: string;
+  }>;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  overallElo?: number;
+  eloRating?: number;
+  timesPlayed?: number;
+  attemptsCount?: number;
+  correctCount?: number;
+  successRate?: number;
+  username: string;
+  userId: string;
+  updatedAt: string;
+}
+
+export interface UserRank {
+  rank: number;
+  userRating: number;
+  totalPlayers: number;
+  percentile: number;
+  categoryId?: string;
+}
+
+export interface RatingLevel {
+  min: number;
+  max: number;
+  label: string;
+  color: string;
+  description: string;
+}
+
+// Constants for ELO rating levels
+export const ELO_RATING_LEVELS: Record<string, RatingLevel> = {
+  beginner: {
+    min: 0,
+    max: 1000,
+    label: 'Beginner',
+    color: '#ef4444', // red
+    description: 'Starting your learning journey'
+  },
+  intermediate: {
+    min: 1000,
+    max: 1300,
+    label: 'Intermediate',
+    color: '#f59e0b', // amber
+    description: 'Building your skills'
+  },
+  advanced: {
+    min: 1300,
+    max: 1600,
+    label: 'Advanced',
+    color: '#3b82f6', // blue
+    description: 'Mastering the concepts'
+  },
+  expert: {
+    min: 1600,
+    max: 2000,
+    label: 'Expert',
+    color: '#10b981', // emerald
+    description: 'Excellence achieved'
+  }
+};
+
+// --------------------------------------------------------------------------
 // API Response Types
 // -----------------------------------------------------------------------------
 
