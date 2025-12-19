@@ -94,13 +94,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
   // Actions
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   checkAuth: () => Promise<void>;
+  setUser?: (user: AuthUser) => void;
 }
 
 // Create context
@@ -242,6 +242,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [logout]);
 
+  // setUser function for direct user update (e.g., after profile edit)
+  const setUser = (user: AuthUser) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    dispatch({ type: 'UPDATE_USER', payload: user });
+  };
+
   // Context value
   const value: AuthContextType = {
     // State
@@ -250,13 +256,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: state.isAuthenticated,
     isLoading: state.isLoading,
     error: state.error,
-    
     // Actions
     login,
     register,
     logout,
     clearError,
     checkAuth,
+    setUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

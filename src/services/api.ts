@@ -11,7 +11,7 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * Authenticated user interface
+ * Authenticated user interface with profile fields
  */
 export interface AuthUser {
   id: string;
@@ -19,6 +19,14 @@ export interface AuthUser {
   username: string;
   first_name?: string;
   last_name?: string;
+  age?: number;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip_code?: string;
+  phone?: string;
   role?: 'user' | 'admin';
   created_at: string;
   updated_at: string;

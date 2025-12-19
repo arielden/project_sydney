@@ -1,37 +1,53 @@
 import pool from '../config/database';
 
-// SAT Math Categories - Complete 22 categories from official College Board taxonomy
+// SAT Math Categories - 20 official SAT math categories (numeric IDs)
+// Mapped to database category table IDs
 const SAT_MATH_CATEGORIES = {
-  // Algebra (9 categories)
-  'linear_equations_one_variable': 'Linear Equations (One Variable)',
-  'linear_equations_systems': 'Linear Equations (Systems)',
-  'linear_inequalities': 'Linear Inequalities',
-  'functions_notation': 'Functions and Notation',
-  'functions_linear': 'Linear Functions',
-  'functions_quadratic': 'Quadratic Functions',
-  'functions_exponential': 'Exponential Functions',
-  'functions_polynomial': 'Polynomial Functions',
-  'functions_rational': 'Rational Functions',
-  
-  // Advanced Math (7 categories)
-  'quadratic_equations': 'Quadratic Equations',
-  'polynomial_operations': 'Polynomial Operations',
-  'rational_expressions': 'Rational Expressions',
-  'radical_expressions': 'Radical Expressions and Equations',
-  'exponential_equations': 'Exponential Equations',
-  'logarithmic_functions': 'Logarithmic Functions',
-  'trigonometric_functions': 'Trigonometric Functions',
-  
-  // Problem Solving and Data Analysis (4 categories)
-  'ratios_proportions': 'Ratios and Proportions',
-  'percentages': 'Percentages',
-  'unit_conversion': 'Unit Conversion and Rates',
-  'data_interpretation': 'Data Interpretation',
-  
-  // Geometry and Trigonometry (2 categories)
-  'coordinate_geometry': 'Coordinate Geometry',
-  'trigonometry_applications': 'Trigonometry Applications'
+  1: 'Percentages',
+  2: 'Areas and Volumes',
+  3: 'Trig',
+  4: 'Quadratic Equations',
+  5: 'Special Triangles',
+  6: 'Exponential Equations',
+  7: 'Similar Triangles',
+  8: 'Geometry Basics',
+  9: 'Arcs',
+  10: 'Circle Equations',
+  11: 'Polynomials',
+  12: 'Fractions',
+  13: 'Exponents',
+  14: 'Means and Medians',
+  15: 'Probability and Statistics',
+  16: 'Linear Equations',
+  17: 'Unit Conversions',
+  18: 'Function Transformations',
+  19: 'Systems of Equations',
+  20: 'Misc: Functions/Single Variable Equations'
 } as const;
+
+// Map old string IDs to numeric IDs for backward compatibility
+const LEGACY_CATEGORY_MAP: Record<string, number> = {
+  'problem-solving-percentages': 1,
+  'geometry-measurement': 2,
+  'advanced-trigonometry': 3,
+  'algebra-quadratic': 4,
+  'geometry-triangles': 5,
+  'advanced-exponential': 6,
+  'geometry-triangles-similar': 7,
+  'geometry-fundamentals': 8,
+  'geometry-circles': 9,
+  'geometry-coordinate': 10,
+  'algebra-polynomial': 11,
+  'algebra-rational': 12,
+  'algebra-exponents': 13,
+  'statistics-central-tendency': 14,
+  'statistics-probability': 15,
+  'algebra-linear': 16,
+  'problem-solving-units': 17,
+  'algebra-functions': 18,
+  'algebra-systems': 19,
+  'algebra-miscellaneous': 20
+};
 
 const DEFAULT_ELO_RATING = 1200;
 
@@ -40,7 +56,7 @@ type CategoryColumnName = 'category_id' | 'category';
 export interface MicroRating {
   id: string;
   user_id: string;
-  category_id: string;
+  category_id: number;
   category_name?: string;
   elo_rating: number;
   attempts: number;
@@ -187,40 +203,23 @@ class MicroRatingModel {
    * Initialize all 22 micro-rating categories for a new user
    */
   static async initializeUserMicroRatings(userId: string): Promise<void> {
-    const client = await pool.connect();
-    const categoryColumn = await this.getCategoryColumn();
-    const { exists: hasSubCategory } = await this.getSubCategoryMetadata();
-    const insertColumns = hasSubCategory
-      ? `user_id, ${categoryColumn}, sub_category, elo_rating, attempts`
-      : `user_id, ${categoryColumn}, elo_rating, attempts`;
-    const insertValues = hasSubCategory
-      ? '($1, $2, $3, $4, $5)'
-      : '($1, $2, $3, $4)';
-    const insertQuery = `
-      INSERT INTO micro_ratings (${insertColumns})
-      VALUES ${insertValues}
-      ON CONFLICT DO NOTHING
-    `;
+    const categoryIds = Object.keys(SAT_MATH_CATEGORIES).map(k => Number(k));
     
     try {
-      await client.query('BEGIN');
+      const insertQuery = `
+        INSERT INTO micro_ratings (user_id, category_id, elo_rating, attempts)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, category_id) DO NOTHING
+      `;
       
-      const insertPromises = Object.keys(SAT_MATH_CATEGORIES).map(categoryId => {
-        const params = hasSubCategory
-          ? [userId, categoryId, categoryId, DEFAULT_ELO_RATING, 0]
-          : [userId, categoryId, DEFAULT_ELO_RATING, 0];
-
-        return client.query(insertQuery, params);
+      const insertPromises = categoryIds.map(categoryId => {
+        return pool.query(insertQuery, [userId, categoryId, DEFAULT_ELO_RATING, 0]);
       });
       
       await Promise.all(insertPromises);
-      await client.query('COMMIT');
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error initializing micro ratings:', error);
       throw new Error('Failed to initialize micro ratings');
-    } finally {
-      client.release();
     }
   }
 
@@ -346,19 +345,22 @@ class MicroRatingModel {
       // If no ratings exist, initialize them
       if (result.rows.length === 0) {
         await this.initializeUserMicroRatings(userId);
-        // Return initialized ratings
-        return Object.keys(SAT_MATH_CATEGORIES).map(categoryId => ({
-          category_id: categoryId,
-          category_name: SAT_MATH_CATEGORIES[categoryId as keyof typeof SAT_MATH_CATEGORIES],
-          ...(hasSubCategory ? { sub_category: categoryId } : {}),
-          elo_rating: DEFAULT_ELO_RATING,
-           attempts: 0,
-           attempts_count: 0,
-          correct_count: 0,
-          success_rate: 0,
-          last_attempt_date: null,
-          updated_at: new Date()
-        }));
+        // Return initialized ratings (convert numeric keys to numbers)
+        return (Object.keys(SAT_MATH_CATEGORIES) as unknown as (keyof typeof SAT_MATH_CATEGORIES)[]).map(categoryId => {
+          const numericId = Number(categoryId);
+          return {
+            category_id: numericId,
+            category_name: SAT_MATH_CATEGORIES[categoryId],
+            ...(hasSubCategory ? { sub_category: categoryId } : {}),
+            elo_rating: DEFAULT_ELO_RATING,
+            attempts: 0,
+            attempts_count: 0,
+            correct_count: 0,
+            success_rate: 0,
+            last_attempt_date: null,
+            updated_at: new Date()
+          };
+        });
       }
       
       // Add category names

@@ -3,7 +3,6 @@ import pool from '../config/database';
 /** Question database entity interface */
 export interface Question {
   id: string;
-  question_type: string;
   question_text: string;
   options: Array<{ id: string; text: string }>;
   correct_answer: string;

@@ -90,7 +90,6 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
           question_text: firstQuestion.question_text,
           options: firstQuestion.options,
           difficulty_rating: firstQuestion.difficulty_rating,
-          question_type: firstQuestion.question_type,
           timeLimit: 120 // 2 minutes default
         },
         totalQuestions: sessionType === 'diagnostic' ? 44 : 20
@@ -155,10 +154,11 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       const attemptedQuestionIds = attempts.map(attempt => attempt.question_id);
       const questionQuery = `
         SELECT id, question_text, options, difficulty_rating, 
-               COALESCE(elo_rating, 1200) as elo_rating, question_type, 
-               category_id, correct_answer, explanation
-        FROM questions 
-        WHERE id NOT IN (${attemptedQuestionIds.map((_, i) => `$${i + 1}`).join(', ') || 'NULL'})
+               COALESCE(elo_rating, 1200) as elo_rating, 
+               COALESCE(qc.category_id, 0) as category_id, correct_answer, explanation
+        FROM questions q
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE q.id NOT IN (${attemptedQuestionIds.map((_, i) => `$${i + 1}`).join(', ') || 'NULL'})
         ORDER BY RANDOM() 
         LIMIT 1
       `;
@@ -190,7 +190,6 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
         options: nextQuestion.options,
         difficulty_rating: nextQuestion.difficulty_rating,
         elo_rating: nextQuestion.elo_rating,
-        question_type: nextQuestion.question_type,
         category_id: nextQuestion.category_id,
         expected_score: nextQuestion.expected_score,
         appropriateness_score: nextQuestion.appropriateness_score,
@@ -627,7 +626,6 @@ async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Respons
         options: question.options,
         difficulty_rating: question.difficulty_rating,
         elo_rating: question.elo_rating,
-        question_type: question.question_type,
         category_id: question.category_id,
         expected_score: question.expected_score,
         appropriateness_score: question.appropriateness_score,
@@ -722,8 +720,9 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
       SELECT DISTINCT ON(q.id)
         q.id, q.question_text, q.options, q.difficulty_rating, 
         COALESCE(q.elo_rating, 1200) as elo_rating, 
-        q.question_type, q.category_id, q.correct_answer, q.explanation
+        COALESCE(qc.category_id, 0) as category_id, q.correct_answer, q.explanation
       FROM questions q
+      LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
       ORDER BY q.id, RANDOM() 
       LIMIT $1
     `;
@@ -742,7 +741,6 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
       options: q.options,
       difficulty_rating: q.difficulty_rating,
       elo_rating: q.elo_rating,
-      question_type: q.question_type,
       category_id: q.category_id,
       correct_answer: q.correct_answer,
       explanation: q.explanation,

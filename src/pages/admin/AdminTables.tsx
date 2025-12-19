@@ -36,7 +36,9 @@ const AdminTables: React.FC = () => {
   const getTableIcon = (tableName: string) => {
     const icons: Record<string, string> = {
       users: '👤',
+      categories: '📂',
       questions: '❓',
+      question_categories: '🔗',
       question_attempts: '📝',
       quiz_sessions: '📋',
       player_ratings: '⭐',
@@ -49,7 +51,9 @@ const AdminTables: React.FC = () => {
   const getTableDescription = (tableName: string) => {
     const descriptions: Record<string, string> = {
       users: 'User accounts and authentication data',
-      questions: 'Quiz questions with categories and difficulty',
+      categories: 'SAT Math categories (20 total)',
+      questions: 'Quiz questions with difficulty levels',
+      question_categories: 'Many-to-many links between questions and categories',
       question_attempts: 'Individual question answer attempts',
       quiz_sessions: 'Quiz session records and scores',
       player_ratings: 'Overall player ELO ratings',

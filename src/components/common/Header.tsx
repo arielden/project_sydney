@@ -84,7 +84,10 @@ const Header = () => {
             
             {/* Authentication Actions */}
             {isAuthenticated ? (
-              <div className="relative">
+              <div 
+                className="relative py-2 px-2 -mx-2 -my-2"
+                onMouseLeave={() => setShowUserMenu(false)}
+              >
                 {/* User Menu Button */}
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
@@ -96,9 +99,9 @@ const Header = () => {
                   </span>
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Dropdown Menu with transition-discrete */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="absolute right-2 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition-all transition-discrete animate-in fade-in duration-200 z-50">
                     <div className="py-1">
                       <div className="px-4 py-2 text-sm text-gray-700 border-b">
                         <p className="font-medium">

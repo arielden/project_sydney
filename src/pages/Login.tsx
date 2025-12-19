@@ -75,7 +75,7 @@ export default function Login() {
       <div className="bg-white p-8 rounded-xl shadow-card max-w-md w-full mx-4">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-primary mb-2">Welcome Back to Sydney</h1>
+          <h1 className="text-3xl font-bold text-blue-primary mb-2">Welcome Back to Sopharium</h1>
           <p className="text-gray-600">Sign in to continue your SAT prep journey</p>
         </div>
 
@@ -153,7 +153,7 @@ export default function Login() {
         {/* Register Link */}
         <div className="mt-6 text-center">
           <p className="text-gray-600">
-            New to Sydney?{' '}
+            New to Sopharium?{' '}
             <Link 
               to="/register" 
               state={{ from: state?.from }}

@@ -1,73 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Calendar, Award, Clock, BarChart3, Zap } from 'lucide-react';
-import { eloRatingService } from '../services/eloRatingService';
-import type { MicroRating, UserELORating } from '../services/eloRatingService';
-import { ELO_RATING_LEVELS } from '../types';
-import type { RatingLevel } from '../types';
-
-type NormalizedMicroRating = {
-  id: string;
-  name: string;
-  rating: number;
-  attempts: number;
-  correct: number;
-  successRate: number | null;
-  lastAttempt: string | null;
-};
+import { authService } from '../services/authService';
+import { User, Mail, Calendar } from 'lucide-react';
 
 export default function Profile() {
-  const { user } = useAuth();
-  const [overallRating, setOverallRating] = useState<UserELORating | null>(null);
-  const [microRatings, setMicroRatings] = useState<MicroRating[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-
-    const fetchRatings = async () => {
-      setIsLoading(true);
-      setError(null);
-
-      const [overallResult, microResult] = await Promise.allSettled([
-        eloRatingService.getOverallRating(),
-        eloRatingService.getMicroRatings(),
-      ]);
-
-      if (overallResult.status === 'fulfilled') {
-        setOverallRating(overallResult.value);
-      } else {
-        console.warn('Failed to load overall rating', overallResult.reason);
-        setError((prev) => prev ?? 'Unable to load overall rating data.');
-      }
-
-      if (microResult.status === 'fulfilled') {
-        setMicroRatings(microResult.value);
-      } else {
-        console.warn('Failed to load micro ratings', microResult.reason);
-        setError((prev) => prev ?? 'Unable to load category rating data.');
-      }
-
-      setIsLoading(false);
-    };
-
-    fetchRatings();
-  }, [user?.id]);
-
-  const normalizedRatings = useMemo<NormalizedMicroRating[]>(() => {
-    return microRatings.map((rating) => ({
-      id: rating.category_id,
-      name: rating.category_name,
-      rating: rating.elo_rating ?? 1200,
-      attempts: rating.attempts_count ?? 0,
-      correct: rating.correct_count ?? 0,
-      successRate: rating.success_rate ?? null,
-      lastAttempt: rating.last_attempt_date ?? null,
-    }));
-  }, [microRatings]);
+  const { user, setUser } = useAuth();
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState({
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    age: user?.age?.toString() || '',
+    gender: user?.gender || '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    country: user?.country || '',
+    zip_code: user?.zip_code || '',
+    phone: user?.phone || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'N/A';
@@ -80,25 +32,12 @@ export default function Profile() {
     });
   };
 
-  const getRatingLevel = (rating: number): RatingLevel => {
-    if (rating < 1000) return ELO_RATING_LEVELS.beginner;
-    if (rating < 1300) return ELO_RATING_LEVELS.intermediate;
-    if (rating < 1600) return ELO_RATING_LEVELS.advanced;
-    return ELO_RATING_LEVELS.expert;
-  };
-
-  const getRatingColor = (rating: number) => getRatingLevel(rating).color;
-
   if (!user) {
     return null;
   }
 
-  const currentElo = overallRating?.overall_elo ?? 1200;
-  const ratingLevel = getRatingLevel(currentElo);
-  const questionsAnswered = overallRating?.times_played ?? 0;
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-8 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="bg-white rounded-xl shadow-card p-8">
           <div className="flex items-center gap-6">
@@ -123,188 +62,251 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Current ELO Rating</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: getRatingColor(currentElo) }}>
-                    {currentElo}
-                  </span>
-                  <span className="text-xs font-semibold px-2 py-1 rounded bg-gray-100" style={{ color: ratingLevel.color }}>
-                    {ratingLevel.label}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">{ratingLevel.description}</p>
-              </div>
-              <Zap size={28} className="text-yellow-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Questions Answered</p>
-                <p className="text-2xl font-bold text-blue-primary">{questionsAnswered}</p>
-                <p className="text-xs text-gray-500 mt-2">Total attempts recorded</p>
-              </div>
-              <BarChart3 size={26} className="text-blue-primary" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Last Active</p>
-                <p className="text-lg font-semibold text-gray-900">{formatDate(user.last_login)}</p>
-              </div>
-              <Clock size={26} className="text-gray-500" />
-            </div>
-          </div>
-        </div>
-
         <div className="bg-white rounded-xl shadow-card p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Profile Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Username</p>
-              <p className="text-gray-900">{user.username}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Email Address</p>
-              <p className="text-gray-900">{user.email}</p>
-            </div>
-            {user.first_name && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">First Name</p>
-                <p className="text-gray-900">{user.first_name}</p>
-              </div>
-            )}
-            {user.last_name && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Last Name</p>
-                <p className="text-gray-900">{user.last_name}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-gray-600">Account Created</p>
-              <p className="text-gray-900">{formatDate(user.created_at)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Account Status</p>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                Active
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-card p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Rating System</h2>
-          <p className="text-gray-600 mb-6">
-            Your adaptive ELO rating reflects how well you are performing across SAT Math topics. It adjusts after every
-            attempt based on both the question difficulty and your current rating.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {Object.entries(ELO_RATING_LEVELS).map(([key, level]) => (
-              <div
-                key={key}
-                className="p-4 rounded-lg border-2"
-                style={{ borderColor: level.color, backgroundColor: `${level.color}10` }}
+          <div className="flex flex-row items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Profile Details</h2>
+            {!editMode && (
+              <button
+                className="px-4 py-2 rounded bg-blue-primary text-white font-semibold hover:bg-blue-700 transition"
+                onClick={() => setEditMode(true)}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: level.color }} />
-                  <span className="font-semibold" style={{ color: level.color }}>
-                    {level.label}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600">{level.min.toLocaleString()} - {level.max.toLocaleString()}</p>
-                <p className="text-xs text-gray-500 mt-2">{level.description}</p>
-              </div>
-            ))}
+                Edit
+              </button>
+            )}
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-card p-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Award size={28} className="text-blue-primary" />
-            <h2 className="text-2xl font-bold text-gray-900">Category Ratings</h2>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="flex flex-col items-center py-10 text-gray-600">
-              <div className="animate-spin">
-                <Zap size={28} className="text-blue-primary" />
+          {editMode ? (
+            <form
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setSaving(true);
+                setSaveError(null);
+                try {
+                  const payload = {
+                    ...form,
+                    age: form.age ? parseInt(form.age) : undefined,
+                  };
+                  const updatedUser = await authService.updateProfile(payload);
+                  setUser && setUser(updatedUser);
+                  setEditMode(false);
+                } catch (err: any) {
+                  setSaveError(err?.message || 'Failed to save profile.');
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              <div>
+                <label className="text-sm font-medium text-gray-600">First Name</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.first_name}
+                  onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+                  autoComplete="given-name"
+                />
               </div>
-              <p className="mt-2 text-sm">Loading category ratings...</p>
-            </div>
-          ) : normalizedRatings.length === 0 ? (
-            <p className="text-sm text-gray-600">We will populate your category ratings as soon as you begin practicing.</p>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Last Name</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.last_name}
+                  onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+                  autoComplete="family-name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Age</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  type="number"
+                  min="0"
+                  value={form.age}
+                  onChange={e => setForm(f => ({ ...f, age: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Gender</label>
+                <select
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.gender}
+                  onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
+                >
+                  <option value="">Select...</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-gray-600">Address</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  autoComplete="street-address"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">City</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.city}
+                  onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  autoComplete="address-level2"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">State</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.state}
+                  onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                  autoComplete="address-level1"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Country</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.country}
+                  onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                  autoComplete="country"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">ZIP/Postal Code</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.zip_code}
+                  onChange={e => setForm(f => ({ ...f, zip_code: e.target.value }))}
+                  autoComplete="postal-code"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-gray-600">Phone</label>
+                <input
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  value={form.phone}
+                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  autoComplete="tel"
+                />
+              </div>
+              <div className="md:col-span-2 flex gap-3 mt-4">
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded bg-blue-primary text-white font-semibold hover:bg-blue-700 transition disabled:opacity-60"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300 transition"
+                  onClick={() => {
+                    setEditMode(false);
+                    setForm({
+                      first_name: user.first_name || '',
+                      last_name: user.last_name || '',
+                      age: user.age?.toString() || '',
+                      gender: user.gender || '',
+                      address: user.address || '',
+                      city: user.city || '',
+                      state: user.state || '',
+                      country: user.country || '',
+                      zip_code: user.zip_code || '',
+                      phone: user.phone || '',
+                    });
+                  }}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </div>
+              {saveError && (
+                <div className="md:col-span-2 text-red-600 text-sm mt-2">{saveError}</div>
+              )}
+            </form>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {normalizedRatings.map((rating) => {
-                const categoryLevel = getRatingLevel(rating.rating);
-
-                return (
-                  <div
-                    key={rating.id}
-                    className="p-4 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
-                  >
-                    <h3 className="text-sm font-semibold text-gray-900 truncate mb-3">{rating.name}</h3>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Rating</span>
-                        <span className="font-semibold" style={{ color: getRatingColor(rating.rating) }}>
-                          {rating.rating}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Level</span>
-                        <span
-                          className="text-xs font-semibold px-2 py-1 rounded"
-                          style={{ backgroundColor: `${categoryLevel.color}20`, color: categoryLevel.color }}
-                        >
-                          {categoryLevel.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Attempts</span>
-                        <span className="font-medium text-gray-900">{rating.attempts}</span>
-                      </div>
-                      {rating.successRate !== null && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">Success</span>
-                          <span className="font-medium text-gray-900">{(rating.successRate * 100).toFixed(1)}%</span>
-                        </div>
-                      )}
-                      {rating.lastAttempt && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">Last Attempt</span>
-                          <span className="font-medium text-gray-900 text-xs">{formatDate(rating.lastAttempt)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-4 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full transition-all"
-                        style={{
-                          width: `${Math.min(100, (rating.rating / 2000) * 100)}%`,
-                          backgroundColor: categoryLevel.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Username</p>
+                <p className="text-gray-900">{user.username}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Email Address</p>
+                <p className="text-gray-900">{user.email}</p>
+              </div>
+              {user.first_name && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">First Name</p>
+                  <p className="text-gray-900">{user.first_name}</p>
+                </div>
+              )}
+              {user.last_name && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Last Name</p>
+                  <p className="text-gray-900">{user.last_name}</p>
+                </div>
+              )}
+              {user.age && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Age</p>
+                  <p className="text-gray-900">{user.age}</p>
+                </div>
+              )}
+              {user.gender && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Gender</p>
+                  <p className="text-gray-900">{user.gender}</p>
+                </div>
+              )}
+              {user.address && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Address</p>
+                  <p className="text-gray-900">{user.address}</p>
+                </div>
+              )}
+              {user.city && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">City</p>
+                  <p className="text-gray-900">{user.city}</p>
+                </div>
+              )}
+              {user.state && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">State</p>
+                  <p className="text-gray-900">{user.state}</p>
+                </div>
+              )}
+              {user.country && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Country</p>
+                  <p className="text-gray-900">{user.country}</p>
+                </div>
+              )}
+              {user.zip_code && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">ZIP/Postal Code</p>
+                  <p className="text-gray-900">{user.zip_code}</p>
+                </div>
+              )}
+              {user.phone && (
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Phone</p>
+                  <p className="text-gray-900">{user.phone}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-gray-600">Account Created</p>
+                <p className="text-gray-900">{formatDate(user.created_at)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600">Account Status</p>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                  Active
+                </span>
+              </div>
             </div>
           )}
         </div>

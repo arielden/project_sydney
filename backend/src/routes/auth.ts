@@ -277,6 +277,65 @@ async function handleGetProfile(req: AuthenticatedRequest, res: Response): Promi
 }
 
 /**
+ * Update current user profile handler (protected route)
+ */
+async function handleUpdateProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    if (!req.user) {
+      res.status(401).json(formatErrorResponse(
+        'Authentication required',
+        ['Please log in to access this resource']
+      ));
+      return;
+    }
+
+    // Only allow updating editable fields
+    const {
+      first_name, last_name, age, gender, address, city, state, country, zip_code, phone
+    } = req.body;
+
+    // Basic validation (can be extended)
+    if (age && (isNaN(Number(age)) || Number(age) < 0)) {
+      res.status(400).json(formatErrorResponse('Invalid age', ['Age must be a positive number']));
+      return;
+    }
+
+    // Build update query
+    const fields = [
+      { key: 'first_name', value: first_name },
+      { key: 'last_name', value: last_name },
+      { key: 'age', value: age },
+      { key: 'gender', value: gender },
+      { key: 'address', value: address },
+      { key: 'city', value: city },
+      { key: 'state', value: state },
+      { key: 'country', value: country },
+      { key: 'zip_code', value: zip_code },
+      { key: 'phone', value: phone },
+    ];
+    const setClauses = fields
+      .filter(f => typeof f.value !== 'undefined')
+      .map((f, i) => `${f.key} = $${i + 1}`);
+    const values = fields.filter(f => typeof f.value !== 'undefined').map(f => f.value);
+
+    if (setClauses.length === 0) {
+      res.status(400).json(formatErrorResponse('No fields to update', ['No profile fields provided']));
+      return;
+    }
+
+    // Update user in DB
+    const query = `UPDATE users SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${setClauses.length + 1} RETURNING *`;
+    const { rows } = await (await import('../config/database')).default.query(query, [...values, req.user.id]);
+    const updatedUser = rows[0];
+
+    res.status(200).json(formatSuccessResponse('Profile updated successfully', { user: updatedUser }));
+  } catch (error: any) {
+    console.error('Update profile error:', error);
+    res.status(500).json(formatErrorResponse('Failed to update profile', ['Internal server error']));
+  }
+}
+
+/**
  * Logout user handler (client-side token removal)
  */
 async function handleLogout(req: AuthenticatedRequest, res: Response): Promise<void> {
@@ -330,6 +389,7 @@ router.post('/login', loginValidation, handleLogin);
  * Get current user profile (protected)
  */
 router.get('/profile', authenticateToken, handleGetProfile);
+router.put('/profile', authenticateToken, handleUpdateProfile);
 
 /**
  * POST /api/auth/logout

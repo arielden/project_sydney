@@ -14,7 +14,6 @@ export interface AdaptiveQuestionOptions {
 export interface QuestionWithPrediction {
   id: string;
   question_text: string;
-  question_type: string;
   category_id: string;
   options: string[];
   correct_answer: string;
@@ -101,8 +100,7 @@ class AdaptiveSelectionService {
         SELECT 
           q.id,
           q.question_text,
-          q.question_type,
-          q.category_id,
+          COALESCE(qc.category_id, 0) as category_id,
           q.options,
           q.correct_answer,
           q.explanation,
@@ -112,6 +110,7 @@ class AdaptiveSelectionService {
           q.times_correct,
           q.created_at
         FROM questions q
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
         WHERE ${whereConditions.join(' AND ')}
         ORDER BY RANDOM()
         LIMIT 50

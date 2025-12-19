@@ -9,6 +9,14 @@ export interface User {
   password_hash?: string; // Optional for security (don't expose in responses)
   first_name?: string;
   last_name?: string;
+  age?: number;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip_code?: string;
+  phone?: string;
   created_at: Date;
   updated_at: Date;
   last_login?: Date;
@@ -22,6 +30,14 @@ export interface CreateUserData {
   password_hash: string;
   first_name?: string;
   last_name?: string;
+  age?: number;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip_code?: string;
+  phone?: string;
 }
 
 /** User response interface (excludes sensitive fields like password_hash) */
@@ -31,6 +47,14 @@ export interface UserResponse {
   username: string;
   first_name?: string;
   last_name?: string;
+  age?: number;
+  gender?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip_code?: string;
+  phone?: string;
   role?: string;
   created_at: Date;
   updated_at: Date;
@@ -47,24 +71,33 @@ export interface UserResponse {
 export async function createUser(userData: CreateUserData): Promise<UserResponse> {
   try {
     const query = `
-      INSERT INTO users (email, username, password_hash, first_name, last_name)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, email, username, first_name, last_name, created_at, updated_at, last_login, is_active
+      INSERT INTO users (
+        email, username, password_hash, first_name, last_name,
+        age, gender, address, city, state, country, zip_code, phone
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING id, email, username, first_name, last_name, age, gender, address, city, state, country, zip_code, phone, created_at, updated_at, last_login, is_active
     `;
-    
     const values = [
       userData.email.toLowerCase().trim(),
       userData.username.trim(),
       userData.password_hash,
       userData.first_name?.trim() || null,
-      userData.last_name?.trim() || null
+      userData.last_name?.trim() || null,
+      userData.age ?? null,
+      userData.gender?.trim() || null,
+      userData.address?.trim() || null,
+      userData.city?.trim() || null,
+      userData.state?.trim() || null,
+      userData.country?.trim() || null,
+      userData.zip_code?.trim() || null,
+      userData.phone?.trim() || null
     ];
 
     const result: QueryResult = await pool.query(query, values);
     const user = result.rows[0];
 
     // Create initial player rating asynchronously (fire and forget)
-    // Don't await this to speed up registration response
     createInitialPlayerRating(user.id).catch(err => {
       console.error('Failed to create initial player rating:', err);
     });
@@ -92,18 +125,15 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
 export async function findUserByEmail(email: string): Promise<User | null> {
   try {
     const query = `
-      SELECT id, email, username, password_hash, first_name, last_name, role,
+      SELECT id, email, username, password_hash, first_name, last_name, age, gender, address, city, state, country, zip_code, phone, role,
              created_at, updated_at, last_login, is_active
       FROM users 
       WHERE email = $1 AND is_active = true
     `;
-    
     const result: QueryResult = await pool.query(query, [email.toLowerCase().trim()]);
-    
     if (result.rows.length === 0) {
       return null;
     }
-    
     return result.rows[0];
   } catch (error: any) {
     throw new Error(`Failed to find user by email: ${error.message}`);
@@ -119,18 +149,15 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function findUserById(id: string): Promise<UserResponse | null> {
   try {
     const query = `
-      SELECT id, email, username, first_name, last_name, role,
+      SELECT id, email, username, first_name, last_name, age, gender, address, city, state, country, zip_code, phone, role,
              created_at, updated_at, last_login, is_active
       FROM users 
       WHERE id = $1 AND is_active = true
     `;
-    
     const result: QueryResult = await pool.query(query, [id]);
-    
     if (result.rows.length === 0) {
       return null;
     }
-    
     return result.rows[0];
   } catch (error: any) {
     throw new Error(`Failed to find user by ID: ${error.message}`);

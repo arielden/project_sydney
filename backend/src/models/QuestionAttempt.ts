@@ -50,11 +50,17 @@ class QuestionAttemptModel {
     try {
       await client.query('BEGIN');
       
-      // Get question details to check correct answer
+      // Get question details to check correct answer (with primary category from junction table)
       const questionQuery = `
-        SELECT correct_answer, difficulty_rating, category_id, elo_rating, times_answered
-        FROM questions 
-        WHERE id = $1
+        SELECT 
+          q.correct_answer, 
+          q.difficulty_rating, 
+          COALESCE(qc.category_id, 0) as category_id,
+          q.elo_rating, 
+          q.times_answered
+        FROM questions q
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE q.id = $1
       `;
       const questionResult = await client.query(questionQuery, [questionId]);
       
@@ -324,7 +330,7 @@ class QuestionAttemptModel {
     const query = `
       SELECT 
         q.question_type,
-        q.category_id,
+        COALESCE(qc.category_id, 0) as category_id,
         COUNT(*) as total_attempts,
         SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END) as correct_attempts,
         ROUND(
@@ -337,8 +343,9 @@ class QuestionAttemptModel {
         AVG(qa.player_rating_after - qa.player_rating_before) as avg_rating_change
       FROM question_attempts qa
       JOIN questions q ON qa.question_id = q.id
+      LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
       WHERE qa.user_id = $1
-      GROUP BY q.question_type, q.category_id
+      GROUP BY q.question_type, COALESCE(qc.category_id, 0)
       ORDER BY accuracy_percentage DESC
     `;
     

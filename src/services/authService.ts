@@ -6,6 +6,23 @@ import type { AuthUser, AuthResponse, LoginCredentials, RegisterData } from './a
  */
 export const authService = {
   /**
+   * Update current user profile
+   * @param profileData - Partial user profile fields
+   * @returns Promise<AuthUser> - Updated user data
+   */
+  async updateProfile(profileData: Partial<AuthUser>): Promise<AuthUser> {
+    try {
+      const response = await api.put('/auth/profile', profileData);
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Profile update failed');
+      }
+      return response.data.data.user;
+    } catch (error: any) {
+      const message = apiHelpers.extractErrorMessage(error);
+      throw new Error(message);
+    }
+  },
+  /**
    * Login user with email and password
    * @param email - User's email address
    * @param password - User's password

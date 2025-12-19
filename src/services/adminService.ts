@@ -322,8 +322,8 @@ export const adminService = {
         totalAttempts: parseInt(data.attempts?.total_attempts) || 0,
         totalRatings: parseInt(data.ratings?.total_ratings) || 0,
         avgCorrectRate: parseFloat(data.attempts?.accuracy_rate) || 0,
-        totalMicroRatings: parseInt(data.ratings?.micro_ratings) || 0,
-        questionsPerCategory: data.questions?.categories_breakdown || []
+        totalMicroRatings: parseInt(data.ratings?.total_ratings) || 0,
+        questionsPerCategory: []
       };
     } catch (error: unknown) {
       const message = apiHelpers.extractErrorMessage(error);

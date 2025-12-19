@@ -7,8 +7,9 @@ import { hashPassword } from '../utils/helpers';
  */
 const MANAGEABLE_TABLES = [
   'users',
+  'categories',
   'questions',
-  'question_types',
+  'question_categories',
   'question_attempts',
   'quiz_sessions',
   'player_ratings',
@@ -585,10 +586,11 @@ class AdminService {
     // Question stats
     const questionStats = await pool.query(`
       SELECT 
-        COUNT(*) as total_questions,
-        COUNT(DISTINCT category_id) as categories,
-        AVG(times_answered) as avg_attempts
-      FROM questions
+        COUNT(q.id) as total_questions,
+        COUNT(DISTINCT qc.category_id) as categories,
+        AVG(q.times_answered) as avg_attempts
+      FROM questions q
+      LEFT JOIN question_categories qc ON q.id = qc.question_id
     `);
     stats.questions = questionStats.rows[0];
 
