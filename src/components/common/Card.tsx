@@ -1,15 +1,33 @@
 import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-interface CardProps {
+const cardVariants = cva(
+  'rounded-lg border transition-all duration-300 h-full flex flex-col overflow-hidden',
+  {
+    variants: {
+      variant: {
+        default: 'bg-white border-gray-200 shadow-card hover:shadow-card-hover hover:-translate-y-1',
+        primary: 'bg-gradient-to-br from-navy-dark to-navy-medium border-navy-medium shadow-card hover:shadow-card-hover hover:-translate-y-1',
+        secondary: 'bg-sky-blue-light border-sky-blue shadow-card hover:shadow-card-hover hover:-translate-y-1',
+        accent: 'bg-gradient-to-br from-yellow-accent to-yellow-light border-yellow-accent shadow-card hover:shadow-card-hover hover:-translate-y-1',
+        outline: 'bg-white border-navy-dark shadow-card hover:shadow-card-hover hover:-translate-y-1',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  }
+);
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
   title: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
   link?: string;
-  backgroundColor?: 'cream' | 'purple-light' | 'rose-light';
-  iconText?: string;
   isExternal?: boolean;
   disabled?: boolean;
+  iconText?: string;
 }
 
 const Card = ({ 
@@ -17,48 +35,39 @@ const Card = ({
   description, 
   icon: Icon, 
   link, 
-  backgroundColor = 'cream',
+  variant = 'default',
   iconText,
   isExternal = false,
-  disabled = false
+  disabled = false,
+  className,
+  ...props
 }: CardProps) => {
-  const getBackgroundClass = () => {
-    switch (backgroundColor) {
-      case 'purple-light':
-        return 'bg-purple-light';
-      case 'rose-light':
-        return 'bg-rose-light';
-      default:
-        return 'bg-cream';
-    }
-  };
+  const textColorClass = variant === 'primary' || variant === 'accent' ? 'text-white' : 'text-gray-900';
+  const descriptionColorClass = variant === 'primary' ? 'text-sky-blue-light' : variant === 'accent' ? 'text-navy-dark' : 'text-gray-700';
 
   const CardContent = () => (
-    <div className={`
-      ${getBackgroundClass()} 
-      p-6 rounded-xl shadow-card transition-all duration-300
-      border border-gray-100 h-full flex flex-col
-      ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-card-hover transform hover:-translate-y-1'}
-    `}>
+    <div className={cardVariants({ variant, className })} {...props}>
       {/* Icon Section */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="p-6 flex items-center justify-between mb-2">
         <div className="flex items-center space-x-3">
-          <div className="p-3 bg-white rounded-lg shadow-sm">
-            <Icon className="h-6 w-6 text-blue-primary" />
-          </div>
+          {Icon && (
+            <div className={`p-3 rounded-lg ${variant === 'primary' ? 'bg-sky-blue' : variant === 'accent' ? 'bg-navy-dark' : 'bg-sky-blue-light'}`}>
+              <Icon className={`h-6 w-6 ${variant === 'primary' || variant === 'accent' ? 'text-white' : 'text-navy-dark'}`} />
+            </div>
+          )}
           {iconText && (
-            <span className="text-sm text-gray-600 font-medium">{iconText}</span>
+            <span className={`text-sm font-medium ${variant === 'primary' ? 'text-sky-blue-light' : 'text-gray-600'}`}>{iconText}</span>
           )}
         </div>
-        {(link || isExternal) && (
-          <ArrowUpRight className="h-5 w-5 text-gray-400 group-hover:text-blue-primary transition-colors duration-200" />
+        {(link || isExternal) && !disabled && (
+          <ArrowUpRight className={`h-5 w-5 transition-colors duration-200 ${variant === 'primary' ? 'text-sky-blue-light' : 'text-navy-dark'}`} />
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-grow">
-        <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
-        <p className="text-gray-700 leading-relaxed">{description}</p>
+      <div className="px-6 pb-6 flex-grow">
+        <h3 className={`text-lg font-bold mb-2 ${textColorClass}`}>{title}</h3>
+        <p className={`leading-relaxed ${descriptionColorClass}`}>{description}</p>
       </div>
     </div>
   );
@@ -91,3 +100,4 @@ const Card = ({
 };
 
 export default Card;
+export { cardVariants };

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Award, BarChart3, Calendar, Clock, Mail, User, Zap } from 'lucide-react';
+import { Award, BarChart3, Calendar, Zap, TrendingUp } from 'lucide-react';
 import { eloRatingService } from '../services/eloRatingService';
 import { ELO_RATING_LEVELS } from '../types';
+import { Button } from '../components/common/Button';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -60,127 +61,158 @@ export default function Dashboard() {
   const questionsAnswered = overallRating?.times_played ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 pb-8 px-4">
+    <div className="min-h-screen bg-white pt-24 pb-8 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Learning Dashboard</h1>
-          <p className="text-gray-600">Welcome back! Track your SAT math progress and continue learning.</p>
+          <h1 className="text-4xl font-bold text-navy-dark mb-2">Your Learning Dashboard</h1>
+          <p className="text-lg text-gray-600">Welcome back, {user?.first_name || 'Student'}! Track your SAT math progress and continue learning.</p>
         </div>
 
-        {/* ELO/Stats Cards */}
+        {/* Top Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
+          {/* ELO Card */}
+          <div className="bg-gradient-to-br from-navy-dark to-navy-medium rounded-xl shadow-card p-6 text-white">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Current ELO Rating</p>
+                <p className="text-sky-blue-light text-sm mb-1">Overall ELO Rating</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: getRatingColor(currentElo) }}>{currentElo}</span>
-                  <span className="text-xs font-semibold px-2 py-1 rounded bg-gray-100" style={{ color: ratingLevel.color }}>{ratingLevel.label}</span>
+                  <span className="text-4xl font-bold">{currentElo}</span>
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-yellow-accent text-navy-dark">{ratingLevel.label}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">{ratingLevel.description}</p>
               </div>
-              <Zap size={28} className="text-yellow-500" />
+              <Zap size={36} className="text-yellow-accent" />
             </div>
+            <p className="text-sky-blue-light text-sm">{ratingLevel.description}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
+
+          {/* Questions Card */}
+          <div className="bg-white rounded-xl shadow-card p-6 border border-sky-blue-light">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Questions Answered</p>
-                <p className="text-2xl font-bold text-blue-primary">{questionsAnswered}</p>
-                <p className="text-xs text-gray-500 mt-2">Total attempts recorded</p>
+                <p className="text-gray-600 text-sm mb-1">Questions Answered</p>
+                <p className="text-4xl font-bold text-navy-dark">{questionsAnswered}</p>
               </div>
-              <BarChart3 size={26} className="text-blue-primary" />
+              <BarChart3 size={36} className="text-sky-blue" />
             </div>
+            <p className="text-gray-500 text-sm">Total practice attempts</p>
           </div>
-          <div className="bg-white rounded-xl shadow-card p-6">
-            <div className="flex items-center justify-between">
+
+          {/* Last Active Card */}
+          <div className="bg-sky-blue-light rounded-xl shadow-card p-6 border border-sky-blue">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Last Active</p>
-                <p className="text-lg font-semibold text-gray-900">{formatDate(user?.last_login)}</p>
+                <p className="text-navy-dark text-sm mb-1">Last Active</p>
+                <p className="text-2xl font-bold text-navy-dark">{formatDate(user?.last_login)}</p>
               </div>
-              <Clock size={26} className="text-gray-500" />
+              <Calendar size={36} className="text-navy-dark opacity-50" />
             </div>
+            <p className="text-navy-dark text-sm opacity-75">Keep the streak going!</p>
           </div>
         </div>
 
-        {/* Rating System */}
+        {/* Rating System Explanation */}
         <div className="bg-white rounded-xl shadow-card p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Rating System</h2>
+          <h2 className="text-2xl font-bold text-navy-dark mb-2">Understanding Your Rating</h2>
           <p className="text-gray-600 mb-6">
-            Your adaptive SAT rating reflects how well you are performing across Math topics. It adjusts after every
-            attempt based on both the question difficulty and your current rating.
+            Your adaptive SAT rating (ELO system) reflects your performance across Math topics. It adjusts after every attempt based on both question difficulty and your current rating.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {Object.entries(ELO_RATING_LEVELS).map(([key, level]) => (
               <div
                 key={key}
-                className="p-4 rounded-lg border-2"
-                style={{ borderColor: level.color, backgroundColor: `${level.color}10` }}
+                className="p-4 rounded-lg border-2 hover:shadow-card transition-shadow"
+                style={{ borderColor: level.color, backgroundColor: `${level.color}08` }}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: level.color }} />
-                  <span className="font-semibold" style={{ color: level.color }}>{level.label}</span>
+                  <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: level.color }} />
+                  <span className="font-semibold text-navy-dark">{level.label}</span>
                 </div>
-                <p className="text-xs text-gray-600">{level.min.toLocaleString()} - {level.max.toLocaleString()}</p>
+                <p className="text-xs text-gray-600 font-medium">{level.min.toLocaleString()} - {level.max.toLocaleString()}</p>
                 <p className="text-xs text-gray-500 mt-2">{level.description}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Category Ratings */}
+        {/* Category Ratings Table */}
         <div className="bg-white rounded-xl shadow-card p-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Award size={28} className="text-blue-primary" />
-            <h2 className="text-2xl font-bold text-gray-900">Category Ratings</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-gradient-to-br from-navy-dark to-sky-blue rounded-lg">
+              <Award size={24} className="text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-navy-dark">Category Ratings</h2>
           </div>
+
           {error && (
-            <div className="mb-4 p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">{error}</div>
+            <div className="mb-4 p-4 rounded-lg border border-red-error bg-red-error bg-opacity-5 text-red-error text-sm font-medium">
+              {error}
+            </div>
           )}
+
           {isLoading ? (
             <div className="flex flex-col items-center py-10 text-gray-600">
-              <div className="animate-spin"><Zap size={28} className="text-blue-primary" /></div>
-              <p className="mt-2 text-sm">Loading category ratings...</p>
+              <div className="animate-spin mb-2">
+                <Zap size={28} className="text-sky-blue" />
+              </div>
+              <p className="text-sm">Loading your category performance...</p>
             </div>
           ) : normalizedRatings.length === 0 ? (
-            <p className="text-sm text-gray-600">We will populate your category ratings as soon as you begin practicing.</p>
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-4">Start practicing to see your category ratings!</p>
+              <Button as={Link} to="/quiz/start" variant="primary">
+                Begin Practice
+              </Button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Category</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Rating</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Level</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Attempts</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Success</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Last Attempt</th>
+                  <tr className="border-b-2 border-sky-blue-light bg-gray-light">
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Category</th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Rating</th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Level</th>
+                    <th className="text-center py-4 px-4 text-sm font-semibold text-navy-dark">Attempts</th>
+                    <th className="text-center py-4 px-4 text-sm font-semibold text-navy-dark">Success Rate</th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Last Attempt</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {normalizedRatings.map((rating) => {
+                  {normalizedRatings.map((rating, idx) => {
                     const categoryLevel = getRatingLevel(rating.rating);
                     return (
-                      <tr key={rating.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{rating.name}</td>
-                        <td className="py-3 px-4 text-sm">
-                          <span className="font-semibold" style={{ color: getRatingColor(rating.rating) }}>
+                      <tr 
+                        key={rating.id} 
+                        className={`border-b border-gray-100 hover:bg-sky-blue-light transition-colors ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-gray-light bg-opacity-30'
+                        }`}
+                      >
+                        <td className="py-4 px-4 text-sm font-medium text-navy-dark">{rating.name}</td>
+                        <td className="py-4 px-4 text-sm">
+                          <span className="font-bold text-lg" style={{ color: categoryLevel.color }}>
                             {rating.rating}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-sm">
+                        <td className="py-4 px-4 text-sm">
                           <span 
-                            className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold"
-                            style={{ backgroundColor: `${categoryLevel.color}20`, color: categoryLevel.color }}
+                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                            style={{ backgroundColor: `${categoryLevel.color}15`, color: categoryLevel.color }}
                           >
                             {categoryLevel.label}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-900">{rating.attempts}</td>
-                        <td className="py-3 px-4 text-sm text-gray-900">
-                          {rating.successRate !== null ? `${(rating.successRate * 100).toFixed(1)}%` : '-'}
+                        <td className="py-4 px-4 text-sm text-center text-gray-900 font-medium">{rating.attempts}</td>
+                        <td className="py-4 px-4 text-sm text-center font-medium">
+                          {rating.successRate !== null ? (
+                            <span className="inline-flex items-center gap-1 text-green-success">
+                              <TrendingUp size={16} />
+                              {(rating.successRate * 100).toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
-                        <td className="py-3 px-4 text-sm text-gray-600">
+                        <td className="py-4 px-4 text-sm text-gray-600">
                           {rating.lastAttempt ? formatDate(rating.lastAttempt) : '-'}
                         </td>
                       </tr>
@@ -192,17 +224,28 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Quick Actions (unchanged, but styled) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-6 rounded-xl shadow-card">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Continue Practice</h2>
-            <p className="text-gray-600 mb-6">Resume your adaptive learning session</p>
-            <Link to="/quiz/start" className="inline-flex items-center px-6 py-3 bg-blue-primary text-white rounded-lg hover:bg-blue-dark transition-colors font-medium">Start Practice</Link>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-navy-dark to-sky-blue rounded-xl shadow-card p-8 text-white">
+            <div className="flex items-center gap-3 mb-4">
+              <Zap size={28} className="text-yellow-accent" />
+              <h3 className="text-2xl font-bold">Continue Practice</h3>
+            </div>
+            <p className="text-sky-blue-light mb-6">Resume your adaptive learning session and keep improving</p>
+            <Button as={Link} to="/quiz/start" variant="accent" size="lg">
+              Start Practice Session
+            </Button>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-card">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Diagnostic Assessment</h2>
-            <p className="text-gray-600 mb-6">Take a 44-question diagnostic to update your skill ratings</p>
-            <button className="inline-flex items-center px-6 py-3 border-2 border-blue-primary text-blue-primary rounded-lg hover:bg-blue-primary hover:text-white transition-colors font-medium">Take Diagnostic</button>
+
+          <div className="bg-white rounded-xl shadow-card p-8 border-2 border-sky-blue-light">
+            <div className="flex items-center gap-3 mb-4">
+              <TrendingUp size={28} className="text-navy-dark" />
+              <h3 className="text-2xl font-bold text-navy-dark">Diagnostic Assessment</h3>
+            </div>
+            <p className="text-gray-600 mb-6">Take a comprehensive 44-question diagnostic to update your skill ratings</p>
+            <Button as="button" variant="outline" size="lg" className="w-full">
+              Take Diagnostic Test
+            </Button>
           </div>
         </div>
       </div>
