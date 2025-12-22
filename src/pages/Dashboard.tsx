@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Award, BarChart3, Calendar, Zap, TrendingUp } from 'lucide-react';
 import { eloRatingService } from '../services/eloRatingService';
+import type { UserELORating, MicroRating } from '../services/eloRatingService';
 import { ELO_RATING_LEVELS } from '../types';
 import { Button } from '../components/common/Button';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [overallRating, setOverallRating] = useState(null);
-  const [microRatings, setMicroRatings] = useState([]);
+  const [overallRating, setOverallRating] = useState<UserELORating | null>(null);
+  const [microRatings, setMicroRatings] = useState<MicroRating[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -39,22 +40,21 @@ export default function Dashboard() {
     }));
   }, [microRatings]);
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return 'N/A';
     const parsed = new Date(dateString);
     if (Number.isNaN(parsed.getTime())) return 'N/A';
     return parsed.toLocaleDateString('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric',
+      year: 'numeric', month: 'short', day: 'numeric',
     });
   };
 
-  const getRatingLevel = (rating) => {
+  const getRatingLevel = (rating: number) => {
     if (rating < 1000) return ELO_RATING_LEVELS.beginner;
     if (rating < 1300) return ELO_RATING_LEVELS.intermediate;
     if (rating < 1600) return ELO_RATING_LEVELS.advanced;
     return ELO_RATING_LEVELS.expert;
   };
-  const getRatingColor = (rating) => getRatingLevel(rating).color;
 
   const currentElo = overallRating?.overall_elo ?? 1200;
   const ratingLevel = getRatingLevel(currentElo);
