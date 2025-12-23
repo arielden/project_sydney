@@ -82,7 +82,7 @@ gcloud run deploy $BACKEND_SERVICE \
   --max-instances=10 \
   --min-instances=0 \
   --add-cloudsql-instances=$PROJECT_ID:$REGION:$DB_INSTANCE \
-  --set-env-vars="NODE_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:$REGION:$DB_INSTANCE,DB_PORT=5432,DB_NAME=$DB_NAME,DB_USER=$DB_USER,DB_PASSWORD=$POSTGRES_PASSWORD,JWT_SECRET=$JWT_SECRET,PORT=3000"
+  --set-env-vars="NODE_ENV=production,DB_HOST=/cloudsql/$PROJECT_ID:$REGION:$DB_INSTANCE,DB_PORT=5432,DB_NAME=$DB_NAME,DB_USER=$DB_USER,DB_PASSWORD=$POSTGRES_PASSWORD,JWT_SECRET=$JWT_SECRET"
 
 echo -e "${GREEN}✓ Backend service deployed${NC}"
 
