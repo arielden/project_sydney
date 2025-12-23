@@ -18,9 +18,26 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// CORS configuration with support for multiple origins
+const allowedOrigins = [
+  'http://localhost:5173',           // Local development
+  'http://localhost:3000',            // Local production build
+  'https://sidney-frontend-504880375460.us-central1.run.app',  // Production
+  FRONTEND_URL                        // Environment variable override
+].filter(Boolean);
+
 // Middleware
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
