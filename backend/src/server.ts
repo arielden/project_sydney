@@ -107,7 +107,7 @@ const startServer = async () => {
     
     // Start listening
     app.listen(PORT, () => {
-      console.log('🚀 Sydney Learning Platform API started');
+      console.log('🚀 Sidney Learning Platform API started');
       console.log(`📡 Server running on port ${PORT}`);
       console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
