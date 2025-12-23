@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
+    image: project_sidney-frontend:latest
     container_name: sidney_frontend
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
