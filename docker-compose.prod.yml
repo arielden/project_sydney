@@ -3,14 +3,14 @@ version: '3.8'
 services:
   # Frontend from Docker Hub
   frontend:
-    image: arieldenaro/sydney-frontend:latest
-    container_name: sydney_frontend_prod
+    image: arieldenaro/sidney-frontend:latest
+    container_name: sidney_frontend_prod
     ports:
       - "${FRONTEND_PORT:-80}:80"
     environment:
       - NODE_ENV=production
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       backend:
@@ -18,8 +18,8 @@ services:
 
   # Backend from Docker Hub
   backend:
-    image: arieldenaro/sydney-backend:latest
-    container_name: sydney_backend_prod
+    image: arieldenaro/sidney-backend:latest
+    container_name: sidney_backend_prod
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
@@ -27,15 +27,15 @@ services:
       - PORT=3000
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=${POSTGRES_DB:-sydney_db}
+      - DB_NAME=${POSTGRES_DB:-sidney_db}
       - DB_USER=${POSTGRES_USER:-admin}
       - DB_PASSWORD=${POSTGRES_PASSWORD:-admin123}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sydney_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sidney_db}
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:80}
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -44,9 +44,9 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: sydney_postgres_prod
+    container_name: sidney_postgres_prod
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sydney_db}
+      POSTGRES_DB: ${POSTGRES_DB:-sidney_db}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
     ports:
@@ -56,10 +56,10 @@ services:
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./database/seeds:/docker-entrypoint-initdb.d/seeds:ro
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-sydney_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-sidney_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,9 +67,9 @@ services:
   # pgAdmin (Optional - for database management)
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: sydney_pgadmin_prod
+    container_name: sidney_pgadmin_prod
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sydney.com}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sidney.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
@@ -77,7 +77,7 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -92,5 +92,5 @@ volumes:
 
 # Network for inter-service communication
 networks:
-  sydney_network:
+  sidney_network:
     driver: bridge

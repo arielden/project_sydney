@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
-    container_name: sydney_frontend
+    container_name: sidney_frontend
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     volumes:
@@ -16,7 +16,7 @@ services:
       - NODE_ENV=development
       - VITE_API_URL=${VITE_API_URL:-http://localhost:3000/api}
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -27,7 +27,7 @@ services:
   # Backend API Server
   backend:
     image: node:20-alpine
-    container_name: sydney_backend
+    container_name: sidney_backend
     working_dir: /app
     ports:
       - "${BACKEND_PORT:-3000}:3000"
@@ -39,14 +39,14 @@ services:
       - PORT=3000
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_NAME=${POSTGRES_DB:-sydney_db}
+      - DB_NAME=${POSTGRES_DB:-sidney_db}
       - DB_USER=${POSTGRES_USER:-admin}
       - DB_PASSWORD=${POSTGRES_PASSWORD:-admin123}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sydney_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sidney_db}
       - FRONTEND_URL=http://localhost:5173
     command: sh -c "npm install && npm run dev"
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -57,9 +57,9 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: sydney_postgres
+    container_name: sidney_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sydney_db}
+      POSTGRES_DB: ${POSTGRES_DB:-sidney_db}
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
     ports:
@@ -68,10 +68,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-sydney_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-sidney_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,9 +79,9 @@ services:
   # pgAdmin (Optional - for database management)
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: sydney_pgadmin
+    container_name: sidney_pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sydney.com}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@sidney.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
@@ -89,7 +89,7 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     networks:
-      - sydney_network
+      - sidney_network
     restart: unless-stopped
     depends_on:
       postgres:
@@ -104,5 +104,5 @@ volumes:
 
 # Network for inter-service communication
 networks:
-  sydney_network:
+  sidney_network:
     driver: bridge

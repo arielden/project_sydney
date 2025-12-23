@@ -71,18 +71,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-cream pt-16 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-card max-w-md w-full mx-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-light to-white pt-24 flex items-center justify-center px-4">
+      <div className="bg-white p-8 rounded-2xl shadow-elevation max-w-md w-full border border-sky-blue-light">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-primary mb-2">Welcome Back to Sopharium</h1>
-          <p className="text-gray-600">Sign in to continue your SAT prep journey</p>
+          <h1 className="text-4xl font-bold text-navy-dark mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to Sopharium</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
+          <div className="mb-6 p-4 bg-red-error bg-opacity-10 border border-red-error rounded-lg">
+            <p className="text-red-error text-sm font-medium">{error}</p>
           </div>
         )}
 
@@ -90,7 +90,7 @@ export default function Login() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email Field */}
           <div>
-            <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="email" className="block text-navy-dark font-semibold mb-2 text-sm">
               Email Address
             </label>
             <input 
@@ -99,8 +99,8 @@ export default function Login() {
               type="email" 
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
-              placeholder="Enter your email address"
+              className="w-full px-4 py-3 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
+              placeholder="your@email.com"
               required
               autoComplete="email"
             />
@@ -108,7 +108,7 @@ export default function Login() {
 
           {/* Password Field */}
           <div>
-            <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="password" className="block text-navy-dark font-semibold mb-2 text-sm">
               Password
             </label>
             <div className="relative">
@@ -118,15 +118,15 @@ export default function Login() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
-                placeholder="Enter your password"
+                className="w-full px-4 py-3 pr-12 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
+                placeholder="••••••••"
                 required
                 autoComplete="current-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-navy-dark hover:text-sky-blue"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -137,7 +137,7 @@ export default function Login() {
           <button 
             type="submit" 
             disabled={isSubmitting || !formData.email || !formData.password}
-            className="w-full bg-blue-primary text-white py-3 rounded-lg hover:bg-blue-dark focus:ring-2 focus:ring-blue-primary focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full bg-gradient-to-r from-navy-dark to-navy-medium text-white py-3 rounded-lg hover:from-navy-medium hover:to-sky-blue focus:ring-2 focus:ring-navy-dark focus:ring-offset-2 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm hover:shadow-card"
           >
             {isSubmitting ? (
               <>
@@ -152,22 +152,22 @@ export default function Login() {
 
         {/* Register Link */}
         <div className="mt-6 text-center">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             New to Sopharium?{' '}
             <Link 
               to="/register" 
               state={{ from: state?.from }}
-              className="text-blue-primary hover:text-blue-dark font-medium transition-colors"
+              className="text-sky-blue hover:text-navy-dark font-semibold transition-colors"
             >
-              Create an account
+              Create account
             </Link>
           </p>
         </div>
 
         {/* Demo Info */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-blue-700 text-sm text-center">
-            <strong>Demo:</strong> Create an account or use test credentials if available
+        <div className="mt-6 p-4 bg-yellow-accent bg-opacity-10 border border-yellow-accent rounded-lg">
+          <p className="text-navy-dark text-sm text-center font-medium">
+            💡 <strong>Demo:</strong> Create an account or use test credentials
           </p>
         </div>
       </div>

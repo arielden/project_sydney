@@ -1,4 +1,4 @@
-# Backend Dockerfile for Sydney Learning Platform
+# Backend Dockerfile for Sidney Learning Platform
 FROM node:20-alpine
 
 # Set working directory

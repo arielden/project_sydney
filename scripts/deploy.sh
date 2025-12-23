@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Sydney Learning Platform - Production Deployment Script
+# Sidney Learning Platform - Production Deployment Script
 # This script deploys the application from Docker Hub images
 
 set -e  # Exit on any error
 
-echo "🚀 Deploying Sydney Learning Platform from Docker Hub..."
+echo "🚀 Deploying Sidney Learning Platform from Docker Hub..."
 
 # Check if .env.prod exists
 if [ ! -f .env.prod ]; then

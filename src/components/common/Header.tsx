@@ -1,18 +1,32 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, LogOut, Menu, Shield, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 const Header = () => {
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const userMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Don't show header on quiz page for full-screen experience
   if (location.pathname === '/quiz') {
     return null;
   }
+
+  const handleUserMenuMouseEnter = () => {
+    if (userMenuTimeoutRef.current) {
+      clearTimeout(userMenuTimeoutRef.current);
+    }
+    setShowUserMenu(true);
+  };
+
+  const handleUserMenuMouseLeave = () => {
+    userMenuTimeoutRef.current = setTimeout(() => {
+      setShowUserMenu(false);
+    }, 150); // 150ms delay before closing
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -90,7 +104,8 @@ const Header = () => {
             {isAuthenticated ? (
               <div 
                 className="relative"
-                onMouseLeave={() => setShowUserMenu(false)}
+                onMouseEnter={handleUserMenuMouseEnter}
+                onMouseLeave={handleUserMenuMouseLeave}
               >
                 {/* User Menu Button */}
                 <button
@@ -108,7 +123,11 @@ const Header = () => {
 
                 {/* Dropdown Menu */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-card ring-1 ring-black ring-opacity-5 overflow-hidden z-50">
+                  <div 
+                    className="absolute right-0 mt-0 w-56 bg-white rounded-lg shadow-card ring-1 ring-black ring-opacity-5 overflow-hidden z-50"
+                    onMouseEnter={handleUserMenuMouseEnter}
+                    onMouseLeave={handleUserMenuMouseLeave}
+                  >
                     <div className="bg-gradient-to-r from-navy-dark to-sky-blue px-6 py-4">
                       <p className="font-semibold text-white">
                         {user?.first_name && user?.last_name 

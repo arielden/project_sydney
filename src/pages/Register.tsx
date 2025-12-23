@@ -118,18 +118,18 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-cream pt-16 flex items-center justify-center py-8">
-      <div className="bg-white p-8 rounded-xl shadow-card max-w-md w-full mx-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-light to-white pt-24 flex items-center justify-center py-8">
+      <div className="bg-white p-8 rounded-2xl shadow-elevation max-w-md w-full mx-4 border border-sky-blue-light">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-primary mb-2">Start Your SAT Prep Journey</h1>
-          <p className="text-gray-600">Create your Sydney Learning account</p>
+          <h1 className="text-3xl font-bold text-navy-dark mb-2">Create Your Account</h1>
+          <p className="text-gray-600">Join Sopharium and start learning</p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-600 text-sm">{error}</p>
+          <div className="mb-6 p-4 bg-red-error bg-opacity-10 border border-red-error rounded-lg">
+            <p className="text-red-error text-sm font-medium">{error}</p>
           </div>
         )}
 
@@ -138,7 +138,7 @@ export default function Register() {
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="first_name" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="first_name" className="block text-navy-dark font-semibold mb-2 text-sm">
                 First Name
               </label>
               <input 
@@ -147,13 +147,13 @@ export default function Register() {
                 type="text" 
                 value={formData.first_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
+                className="w-full px-4 py-2 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
                 placeholder="First name"
                 autoComplete="given-name"
               />
             </div>
             <div>
-              <label htmlFor="last_name" className="block text-gray-700 font-medium mb-2">
+              <label htmlFor="last_name" className="block text-navy-dark font-semibold mb-2 text-sm">
                 Last Name
               </label>
               <input 
@@ -162,7 +162,7 @@ export default function Register() {
                 type="text" 
                 value={formData.last_name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
+                className="w-full px-4 py-2 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
                 placeholder="Last name"
                 autoComplete="family-name"
               />
@@ -171,7 +171,7 @@ export default function Register() {
 
           {/* Email Field */}
           <div>
-            <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="email" className="block text-navy-dark font-semibold mb-2 text-sm">
               Email Address *
             </label>
             <input 
@@ -180,8 +180,8 @@ export default function Register() {
               type="email" 
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
-              placeholder="Enter your email"
+              className="w-full px-4 py-2 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
+              placeholder="your@email.com"
               required
               autoComplete="email"
             />
@@ -189,7 +189,7 @@ export default function Register() {
 
           {/* Username Field */}
           <div>
-            <label htmlFor="username" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="username" className="block text-navy-dark font-semibold mb-2 text-sm">
               Username *
             </label>
             <input 
@@ -198,7 +198,7 @@ export default function Register() {
               type="text" 
               value={formData.username}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-2 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
               placeholder="Choose a username"
               required
               autoComplete="username"
@@ -207,7 +207,7 @@ export default function Register() {
 
           {/* Password Field */}
           <div>
-            <label htmlFor="password" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="password" className="block text-navy-dark font-semibold mb-2 text-sm">
               Password *
             </label>
             <div className="relative">
@@ -219,7 +219,7 @@ export default function Register() {
                 onChange={handleChange}
                 onFocus={() => setPasswordFocus(true)}
                 onBlur={() => setPasswordFocus(false)}
-                className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all"
+                className="w-full px-4 py-2 pr-12 border border-sky-blue-light rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all bg-sky-blue-light bg-opacity-30"
                 placeholder="Create a password"
                 required
                 autoComplete="new-password"
@@ -227,7 +227,7 @@ export default function Register() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-navy-dark hover:text-sky-blue"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -235,17 +235,17 @@ export default function Register() {
             
             {/* Password Requirements */}
             {(passwordFocus || formData.password) && (
-              <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600 mb-2">Password must contain:</p>
+              <div className="mt-2 p-3 bg-sky-blue-light bg-opacity-20 rounded-lg border border-sky-blue-light">
+                <p className="text-sm text-navy-dark font-semibold mb-2">Password requirements:</p>
                 <div className="space-y-1">
                   {passwordRequirements.map((req, index) => (
                     <div key={index} className="flex items-center text-sm">
                       {req.test(formData.password) ? (
-                        <Check size={16} className="text-green-500 mr-2 flex-shrink-0" />
+                        <Check size={16} className="text-green-success mr-2 flex-shrink-0" />
                       ) : (
                         <X size={16} className="text-gray-400 mr-2 flex-shrink-0" />
                       )}
-                      <span className={req.test(formData.password) ? 'text-green-600' : 'text-gray-600'}>
+                      <span className={req.test(formData.password) ? 'text-green-success font-medium' : 'text-gray-600'}>
                         {req.label}
                       </span>
                     </div>
@@ -257,7 +257,7 @@ export default function Register() {
 
           {/* Confirm Password Field */}
           <div>
-            <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">
+            <label htmlFor="confirmPassword" className="block text-navy-dark font-semibold mb-2 text-sm">
               Confirm Password *
             </label>
             <div className="relative">
@@ -267,10 +267,10 @@ export default function Register() {
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className={`w-full px-4 py-2 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-primary focus:border-transparent transition-all ${
+                className={`w-full px-4 py-2 pr-12 border rounded-lg focus:ring-2 focus:ring-navy-dark focus:border-transparent transition-all ${
                   formData.confirmPassword && formData.password !== formData.confirmPassword
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-gray-300'
+                    ? 'border-red-error bg-red-error bg-opacity-10'
+                    : 'border-sky-blue-light bg-sky-blue-light bg-opacity-30'
                 }`}
                 placeholder="Confirm your password"
                 required
@@ -279,13 +279,13 @@ export default function Register() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-navy-dark hover:text-sky-blue"
               >
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
             {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-              <p className="text-red-600 text-sm mt-1">Passwords do not match</p>
+              <p className="text-red-error text-sm mt-1 font-medium">Passwords do not match</p>
             )}
           </div>
 
@@ -293,7 +293,7 @@ export default function Register() {
           <button 
             type="submit" 
             disabled={isSubmitting || !isFormValid()}
-            className="w-full bg-blue-primary text-white py-3 rounded-lg hover:bg-blue-dark focus:ring-2 focus:ring-blue-primary focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mt-6"
+            className="w-full bg-gradient-to-r from-navy-dark to-navy-medium text-white py-3 rounded-lg hover:from-navy-medium hover:to-sky-blue focus:ring-2 focus:ring-navy-dark focus:ring-offset-2 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mt-6 shadow-sm hover:shadow-card"
           >
             {isSubmitting ? (
               <>
@@ -308,12 +308,12 @@ export default function Register() {
 
         {/* Login Link */}
         <div className="mt-6 text-center">
-          <p className="text-gray-600">
+          <p className="text-gray-600 text-sm">
             Already have an account?{' '}
             <Link 
               to="/login" 
               state={{ from: state?.from }}
-              className="text-blue-primary hover:text-blue-dark font-medium transition-colors"
+              className="text-sky-blue hover:text-navy-dark font-semibold transition-colors"
             >
               Sign in here
             </Link>

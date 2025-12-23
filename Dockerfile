@@ -1,4 +1,4 @@
-# Multi-stage build for Sydney Learning Platform Frontend
+# Multi-stage build for Sidney Learning Platform Frontend
 
 # Development stage
 FROM node:20-alpine AS development
@@ -28,7 +28,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 # Accept build arguments for environment
-ARG VITE_API_URL=https://sydney-backend-jh5r4kunnq-uc.a.run.app/api
+ARG VITE_API_URL=https://sidney-backend-jh5r4kunnq-uc.a.run.app/api
 
 # Copy package files
 COPY package*.json ./

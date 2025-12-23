@@ -48,33 +48,33 @@ const QuizStartPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pt-24 pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-light to-white pt-24 pb-8">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Start New Quiz
+          <h1 className="text-4xl font-bold text-navy-dark mb-4">
+            Start New Practice Session
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Choose your quiz type and challenge yourself with adaptive questions
+            Choose your session type and challenge yourself with adaptive questions
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white rounded-xl shadow-card p-8 border border-sky-blue-light">
           <div className="max-w-4xl mx-auto">
             {/* Quiz Type Selection */}
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Quiz Type</h2>
+                <h2 className="text-xl font-semibold text-navy-dark mb-6">Choose Session Type</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {questionTypes.map((type) => {
                     const IconComponent = type.icon;
                     return (
                       <label
                         key={type.id}
-                        className={`block p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                        className={`block p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-card ${
                           selectedType === type.id
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 hover:border-blue-300'
+                            ? 'border-sky-blue bg-sky-blue-light shadow-card'
+                            : 'border-sky-blue-light hover:border-sky-blue'
                         }`}
                       >
                         <input
@@ -87,17 +87,17 @@ const QuizStartPage: React.FC = () => {
                         />
                         <div className="text-center">
                           <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 ${
-                            selectedType === type.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+                            selectedType === type.id ? 'bg-gradient-to-br from-navy-dark to-sky-blue text-white' : 'bg-sky-blue-light text-navy-dark'
                           }`}>
                             <IconComponent className="w-6 h-6" />
                           </div>
-                          <h3 className="font-semibold text-gray-900 mb-2">{type.name}</h3>
+                          <h3 className="font-semibold text-navy-dark mb-2">{type.name}</h3>
                           <p className="text-sm text-gray-600 mb-4">{type.description}</p>
                           <div className="space-y-1">
                             {type.features.map((feature, index) => (
-                              <div key={index} className="text-xs text-gray-500 flex items-center justify-center">
+                              <div key={index} className="text-xs text-gray-600 flex items-center justify-center">
                                 <div className={`w-1 h-1 rounded-full mr-2 ${
-                                  selectedType === type.id ? 'bg-blue-400' : 'bg-gray-400'
+                                  selectedType === type.id ? 'bg-sky-blue' : 'bg-sky-blue-light'
                                 }`}></div>
                                 {feature}
                               </div>
@@ -111,27 +111,27 @@ const QuizStartPage: React.FC = () => {
               </div>
 
               {/* Start Button */}
-              <div className="pt-6 border-t">
+              <div className="pt-6 border-t border-sky-blue-light">
                 <div className="flex justify-center">
                   <button
                     onClick={handleStartQuiz}
                     disabled={loading}
-                    className="inline-flex items-center px-8 py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-lg text-lg transition-colors shadow-lg hover:shadow-xl"
+                    className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-navy-dark to-navy-medium hover:from-navy-medium hover:to-sky-blue disabled:opacity-50 text-white font-semibold rounded-lg text-lg transition-all shadow-card hover:shadow-elevation"
                   >
                     {loading ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                        Starting Quiz...
+                        Starting Session...
                       </>
                     ) : (
                       <>
-                        Start Quiz
+                        Start Session
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </>
                     )}
                   </button>
                 </div>
-                <p className="text-center text-sm text-gray-500 mt-3">
+                <p className="text-center text-sm text-gray-600 mt-3">
                   Your progress will be automatically saved
                 </p>
               </div>

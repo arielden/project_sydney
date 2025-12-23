@@ -25,7 +25,7 @@ const QuizHeader = memo(({
   onExit: () => void;
   onComplete: () => void;
 }) => (
-  <header className="fixed top-0 left-0 right-0 z-50 bg-blue-primary text-white px-4 py-3 shadow-lg">
+  <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-navy-dark to-navy-medium text-white px-4 py-3 shadow-lg">
     <div className="flex items-center justify-between max-w-7xl mx-auto">
       {/* Left: Section Title */}
       <div className="flex-1">
@@ -78,7 +78,7 @@ const QuizHeader = memo(({
     </div>
     
     {/* Practice Test Banner */}
-    <div className="bg-blue-dark text-center py-2 mt-2 rounded">
+    <div className="bg-sky-blue text-navy-dark text-center py-2 mt-2 rounded font-semibold">
       <span className="text-sm font-medium">
         {isPaused ? 'QUIZ PAUSED' : 'ACTIVE QUIZ SESSION'}
       </span>
@@ -106,29 +106,29 @@ const QuestionContent = memo(({
     {/* Question Header */}
     <div className="flex items-center justify-between mb-6">
       {/* Question Number Badge */}
-      <div className="bg-blue-primary text-white w-10 h-10 rounded flex items-center justify-center font-bold text-lg">
+      <div className="bg-gradient-to-br from-navy-dark to-navy-medium text-white w-10 h-10 rounded flex items-center justify-center font-bold text-lg shadow-sm">
         {questionNumber}
       </div>
       
       {/* Mark for Review */}
       <button 
         onClick={onToggleReview}
-        className={`flex items-center space-x-2 px-3 py-2 rounded transition-colors ${
+        className={`flex items-center space-x-2 px-3 py-2 rounded transition-colors font-medium ${
           markedForReview 
-            ? 'bg-orange-100 text-orange-700' 
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            ? 'bg-yellow-accent text-navy-dark hover:bg-yellow-light' 
+            : 'bg-sky-blue-light text-navy-dark hover:bg-sky-blue'
         }`}
       >
         <Bookmark className={`w-4 h-4 ${markedForReview ? 'fill-current' : ''}`} />
-        <span className="text-sm font-medium">Mark for Review</span>
+        <span className="text-sm font-medium">{markedForReview ? 'Marked for Review' : 'Mark for Review'}</span>
       </button>
     </div>
 
     {/* Question Content */}
-    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-card p-6 mb-6 border border-sky-blue-light">
       {/* Question Text */}
       <div className="mb-8">
-        <div className="text-gray-600 text-sm mb-4">
+        <div className="text-navy-dark text-sm mb-4 font-semibold">
           Difficulty: {currentQuestion?.difficulty_rating} | Type: {currentQuestion?.question_type}
         </div>
         <div className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">
@@ -145,16 +145,16 @@ const QuestionContent = memo(({
               key={optionId}
               className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors relative ${
                 selectedAnswer === optionId
-                  ? 'border-blue-primary bg-blue-light/20 z-10'
-                  : 'border-gray-200 hover:border-blue-primary hover:bg-blue-light/10'
+                  ? 'border-sky-blue bg-sky-blue-light bg-opacity-30 z-10'
+                  : 'border-sky-blue-light hover:border-sky-blue hover:bg-sky-blue-light hover:bg-opacity-20'
               }`}
             >
               <div className="flex items-center space-x-4 w-full">
                 {/* Option Letter Circle */}
                 <div className={`w-8 h-8 border-2 rounded-full flex items-center justify-center font-bold ${
                   selectedAnswer === optionId
-                    ? 'border-blue-primary text-blue-primary'
-                    : 'border-gray-400 text-gray-600'
+                    ? 'border-sky-blue text-sky-blue bg-sky-blue-light bg-opacity-30'
+                    : 'border-sky-blue-light text-navy-dark'
                 }`}>
                   {optionId}
                 </div>
@@ -166,7 +166,7 @@ const QuestionContent = memo(({
                   value={optionId}
                   checked={selectedAnswer === optionId}
                   onChange={(e) => onAnswerSelect(e.target.value)}
-                  className="w-5 h-5 text-blue-primary focus:ring-2 focus:ring-blue-primary focus:ring-offset-2 relative z-10"
+                  className="w-5 h-5 text-sky-blue focus:ring-2 focus:ring-navy-dark focus:ring-offset-2 relative z-10"
                   style={{ scrollMarginTop: '8rem' }}
                 />
                 
@@ -201,7 +201,7 @@ const QuizFooter = memo(({
   onNextQuestion: () => void;
   onOpenNavigator: () => void;
 }) => (
-  <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-3">
+  <footer className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-sky-blue-light px-4 py-3 shadow-lg">
     <div className="flex items-center justify-between max-w-7xl mx-auto">
       {/* Left: Student Name */}
       <div className="flex-1">
@@ -217,13 +217,13 @@ const QuizFooter = memo(({
       <div className="flex-1 text-center">
         <button
           onClick={onOpenNavigator}
-          className="inline-flex items-center gap-2 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors group"
+          className="inline-flex items-center gap-2 bg-sky-blue-light hover:bg-sky-blue hover:text-white px-4 py-2 rounded-lg transition-colors group font-medium"
           title="Open Question Navigator"
         >
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-navy-dark group-hover:text-white">
             Question {questionNumber} of {totalQuestions}
           </span>
-          <ChevronDown className="w-4 h-4 text-gray-500 group-hover:text-gray-700 transition-colors" />
+          <ChevronDown className="w-4 h-4 text-navy-dark group-hover:text-white transition-colors" />
         </button>
       </div>
       
@@ -233,7 +233,7 @@ const QuizFooter = memo(({
           onClick={onPreviousQuestion}
           disabled={questionNumber === 1}
           title="Go to previous question (←)"
-          className="flex items-center gap-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+          className="flex items-center gap-1 px-4 py-2 bg-gray-light text-navy-dark rounded-lg hover:bg-sky-blue-light disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -242,7 +242,7 @@ const QuizFooter = memo(({
           onClick={onNextQuestion}
           disabled={loading}
           title="Go to next question (→)"
-          className="flex items-center gap-1 px-4 py-2 bg-blue-primary text-white rounded-lg hover:bg-blue-dark disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors font-medium"
+          className="flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-navy-dark to-navy-medium text-white rounded-lg hover:from-navy-medium hover:to-sky-blue disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium shadow-sm hover:shadow-card"
         >
           {loading ? 'Saving...' : (questionNumber === totalQuestions ? 'Finish' : 'Next')}
           {!loading && questionNumber !== totalQuestions && <ChevronRight className="w-4 h-4" />}
@@ -739,7 +739,7 @@ export default function QuizPage() {
     );
   }
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-gray-light to-white flex flex-col">
       {/* Custom styles for proper scroll behavior with fixed header */}
       <style>{`
         .quiz-main * {
@@ -776,12 +776,12 @@ export default function QuizPage() {
       {/* Pause Overlay */}
       {isPaused && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-8 text-center max-w-md mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Quiz Paused</h2>
+          <div className="bg-white rounded-lg p-8 text-center max-w-md mx-4 border border-sky-blue-light shadow-elevation">
+            <h2 className="text-2xl font-bold text-navy-dark mb-4">Quiz Paused</h2>
             <p className="text-gray-600 mb-6">Your quiz is currently paused. Click resume to continue.</p>
             <button
               onClick={handlePauseResume}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-navy-dark to-navy-medium text-white rounded-lg hover:from-navy-medium hover:to-sky-blue transition-colors font-semibold shadow-sm"
             >
               <Play className="w-5 h-5 inline mr-2" />
               Resume Quiz

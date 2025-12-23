@@ -13,8 +13,8 @@ set -e  # Exit on error
 echo "🔄 Starting database reset for categories and questions..."
 
 # Get the database connection details from docker compose
-DB_CONTAINER="sydney_postgres"
-DB_NAME="${POSTGRES_DB:-sydney_db}"
+DB_CONTAINER="sidney_postgres"
+DB_NAME="${POSTGRES_DB:-sidney_db}"
 DB_USER="${POSTGRES_USER:-admin}"
 DB_PASSWORD="${POSTGRES_PASSWORD:-admin123}"
 
@@ -22,7 +22,7 @@ DB_PASSWORD="${POSTGRES_PASSWORD:-admin123}"
 if ! docker ps | grep -q "$DB_CONTAINER"; then
     echo "❌ Database container '$DB_CONTAINER' is not running"
     echo "Starting Docker containers..."
-    cd /media/arielden/DATA-M2/Projects/Software/project_sydney
+    cd /media/arielden/DATA-M2/Projects/Software/project_sidney
     docker compose up -d
     sleep 5
 fi
@@ -36,10 +36,10 @@ docker exec $DB_CONTAINER psql -U $DB_USER -d $DB_NAME -c "
 "
 
 echo "📋 Seeding categories..."
-cat /media/arielden/DATA-M2/Projects/Software/project_sydney/database/seeds/seed_categories.sql | docker exec -i $DB_CONTAINER psql -U $DB_USER -d $DB_NAME
+cat /media/arielden/DATA-M2/Projects/Software/project_sidney/database/seeds/seed_categories.sql | docker exec -i $DB_CONTAINER psql -U $DB_USER -d $DB_NAME
 
 echo "❓ Seeding questions..."
-cat /media/arielden/DATA-M2/Projects/Software/project_sydney/database/seeds/seed_development_m2m.sql | docker exec -i $DB_CONTAINER psql -U $DB_USER -d $DB_NAME
+cat /media/arielden/DATA-M2/Projects/Software/project_sidney/database/seeds/seed_development_m2m.sql | docker exec -i $DB_CONTAINER psql -U $DB_USER -d $DB_NAME
 
 echo ""
 echo "✅ Database reset complete!"

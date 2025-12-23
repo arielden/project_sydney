@@ -22,7 +22,7 @@ export default function Home() {
               {/* Hero Content */}
               <div className="text-center lg:text-left">
                 <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-                  Master SAT Math <span className="text-yellow-accent">Adaptively</span>
+                  <span className="text-sky-blue-light">Master SAT Math</span> <span className="text-yellow-accent">Adaptively</span>
                 </h1>
                 <p className="text-xl text-sky-blue-light mb-8 leading-relaxed max-w-lg">
                   Personalized SAT math preparation with intelligent question selection. Get questions calibrated exactly to your level.
@@ -88,7 +88,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-4xl font-bold text-navy-dark mb-4">
-                Why Students Love Sopharium
+                Why Students Love Sidney
               </h2>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
                 Science-backed learning approach with intelligent difficulty scaling
@@ -177,7 +177,7 @@ export default function Home() {
               Ready to Transform Your SAT Prep?
             </h2>
             <p className="text-lg text-gray-600 mb-8">
-              Join thousands of students achieving their target scores with Sopharium
+              Join thousands of students achieving their target scores with Sidney
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button

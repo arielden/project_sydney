@@ -29,21 +29,21 @@ const QuestionSquare = memo(({
   onClick: () => void;
 }) => {
   // Visual Priority Rules - CORRECTED:
-  // 1. Current question = Blue with ring + pin icon
-  // 2. Answered (with or without review) = Blue background
+  // 1. Current question = Navy with ring + pin icon
+  // 2. Answered (with or without review) = Sky-blue background
   // 3. Unanswered (with or without review) = Empty/white background with border
   // 4. Red flag shows ONLY when marked for review (regardless of answered state)
   
   const getBackgroundStyles = (): string => {
     if (isCurrent) {
-      return 'bg-blue-primary text-white border-blue-dark ring-2 ring-blue-light ring-offset-1';
+      return 'bg-navy-dark text-white border-navy-medium ring-2 ring-sky-blue ring-offset-1';
     }
     if (isAnswered) {
-      // Blue for answered, regardless of review status
-      return 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700';
+      // Sky-blue for answered, regardless of review status
+      return 'bg-sky-blue text-white border-sky-blue hover:bg-sky-blue-light';
     }
     // Unanswered = Empty/white with border (even if marked for review)
-    return 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50';
+    return 'bg-white text-navy-dark border-sky-blue-light hover:border-sky-blue hover:bg-sky-blue-light hover:bg-opacity-20';
   };
 
   // Build aria label with all states
@@ -84,7 +84,7 @@ const QuestionSquare = memo(({
       {/* Current Question Indicator - Pin icon above square */}
       {isCurrent && (
         <MapPin 
-          className="absolute -top-5 left-1/2 -translate-x-1/2 w-4 h-4 text-blue-primary fill-blue-primary"
+          className="absolute -top-5 left-1/2 -translate-x-1/2 w-4 h-4 text-navy-dark fill-navy-dark"
         />
       )}
     </button>
@@ -201,19 +201,19 @@ export const QuestionNavigator = memo(({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-sky-blue-light bg-sky-blue-light">
           <div className="flex items-center space-x-3">
-            <MapPin className="w-5 h-5 text-blue-primary" />
-            <h2 id="navigator-title" className="text-lg font-semibold text-gray-900">
+            <MapPin className="w-5 h-5 text-navy-dark" />
+            <h2 id="navigator-title" className="text-lg font-semibold text-navy-dark">
               Question Navigator
             </h2>
           </div>
           <button
             onClick={onClose}
             className="
-              p-2 rounded-lg text-gray-500 hover:text-gray-700 
-              hover:bg-gray-200 transition-colors
-              focus:outline-none focus:ring-2 focus:ring-blue-primary
+              p-2 rounded-lg text-navy-dark hover:text-navy-dark 
+              hover:bg-sky-blue transition-colors
+              focus:outline-none focus:ring-2 focus:ring-navy-dark
             "
             aria-label="Close navigator"
           >
@@ -222,27 +222,27 @@ export const QuestionNavigator = memo(({
         </div>
 
         {/* Summary Stats */}
-        <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+        <div className="px-6 py-3 bg-sky-blue-light border-b border-sky-blue">
           <div className="flex items-center justify-center space-x-6 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 rounded bg-blue-600" />
-              <span className="font-medium text-gray-700">
-                Answered: <span className="text-blue-600">{answeredCount}</span>
+              <div className="w-3 h-3 rounded bg-sky-blue" />
+              <span className="font-medium text-navy-dark">
+                Answered: <span className="text-sky-blue font-semibold">{answeredCount}</span>
               </span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="relative w-3 h-3">
-                <div className="w-3 h-3 rounded bg-white border border-gray-300" />
-                <Flag className="absolute -top-0.5 -right-0.5 w-2 h-2 text-red-600 fill-red-600" />
+                <div className="w-3 h-3 rounded bg-white border border-sky-blue-light" />
+                <Flag className="absolute -top-0.5 -right-0.5 w-2 h-2 text-red-error fill-red-error" />
               </div>
-              <span className="font-medium text-gray-700">
-                For Review: <span className="text-red-600">{reviewCount}</span>
+              <span className="font-medium text-navy-dark">
+                For Review: <span className="text-red-error font-semibold">{reviewCount}</span>
               </span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded bg-gray-300" />
-              <span className="font-medium text-gray-700">
-                Remaining: <span className="text-gray-600">{unansweredCount}</span>
+              <span className="font-medium text-navy-dark">
+                Remaining: <span className="text-gray-600 font-semibold">{unansweredCount}</span>
               </span>
             </div>
           </div>
@@ -280,36 +280,37 @@ export const QuestionNavigator = memo(({
             />
             <LegendItem 
               icon={
-                <div className="relative w-6 h-6 rounded bg-white border-2 border-gray-300">
-                  <Flag className="absolute -top-1 -right-1 w-3 h-3 text-red-600 fill-red-600" />
+                <div className="relative w-6 h-6 rounded bg-white border-2 border-sky-blue-light">
+                  <Flag className="absolute -top-1 -right-1 w-3 h-3 text-red-error fill-red-error" />
                 </div>
               }
               label="Review (Unanswered)" 
             />
             <LegendItem 
               icon={
-                <div className="relative w-6 h-6 rounded bg-blue-600">
-                  <Flag className="absolute -top-1 -right-1 w-3 h-3 text-red-600 fill-red-600" />
+                <div className="relative w-6 h-6 rounded bg-sky-blue">
+                  <Flag className="absolute -top-1 -right-1 w-3 h-3 text-red-error fill-red-error" />
                 </div>
               }
               label="Answered + Review" 
             />
             <LegendItem 
-              icon={<MapPin className="w-5 h-5 text-blue-primary fill-blue-primary" />}
+              icon={<MapPin className="w-5 h-5 text-navy-dark fill-navy-dark" />}
               label="Current" 
             />
           </div>
         </div>
 
         {/* Footer with Close Button */}
-        <div className="px-6 py-4 border-t border-gray-200">
+        <div className="px-6 py-4 border-t border-sky-blue-light">
           <button
             onClick={onClose}
             className="
               w-full py-2.5 px-4 rounded-lg
-              bg-blue-primary text-white font-medium
-              hover:bg-blue-dark transition-colors
-              focus:outline-none focus:ring-2 focus:ring-blue-primary focus:ring-offset-2
+              bg-gradient-to-r from-navy-dark to-navy-medium text-white font-semibold
+              hover:from-navy-medium hover:to-sky-blue transition-colors
+              focus:outline-none focus:ring-2 focus:ring-navy-dark focus:ring-offset-2
+              shadow-sm
             "
           >
             Close Navigator

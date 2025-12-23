@@ -203,9 +203,19 @@ class MicroRatingModel {
    * Initialize all 22 micro-rating categories for a new user
    */
   static async initializeUserMicroRatings(userId: string): Promise<void> {
-    const categoryIds = Object.keys(SAT_MATH_CATEGORIES).map(k => Number(k));
-    
     try {
+      // Fetch actual category IDs from the database
+      const categoriesResult = await pool.query(
+        `SELECT id FROM categories ORDER BY id`
+      );
+      
+      if (categoriesResult.rows.length === 0) {
+        console.warn('No categories found in database. Skipping micro ratings initialization.');
+        return;
+      }
+      
+      const categoryIds = categoriesResult.rows.map((row: any) => row.id);
+      
       const insertQuery = `
         INSERT INTO micro_ratings (user_id, category_id, elo_rating, attempts)
         VALUES ($1, $2, $3, $4)
@@ -287,57 +297,42 @@ class MicroRatingModel {
    */
   static async getUserAllCategoryRatings(userId: string): Promise<any[]> {
     const categoryColumn = await this.getCategoryColumn();
-    const questionCategoryColumn = await this.getQuestionCategoryColumn();
     const { exists: hasSubCategory } = await this.getSubCategoryMetadata();
     const categorySelector = `mr.${categoryColumn}`;
 
-    const query = questionCategoryColumn
-      ? `
-        WITH category_stats AS (
-          SELECT 
-            q.${questionCategoryColumn} AS category_id,
-            COUNT(*) FILTER (WHERE qa.is_correct) AS correct_count,
-            COUNT(*) AS total_attempts,
-            MAX(qa.answered_at) AS last_attempt_date
-          FROM question_attempts qa
-          JOIN questions q ON qa.question_id = q.id
-          WHERE qa.user_id = $1
-          GROUP BY q.${questionCategoryColumn}
-        )
+    // Query with junction table support (question_categories)
+    const query = `
+      WITH category_stats AS (
         SELECT 
-          ${categorySelector} AS category_id,
-          ${hasSubCategory ? 'mr.sub_category,' : ''}
-          mr.elo_rating,
-          mr.attempts,
-          mr.attempts AS attempts_count,
-          COALESCE(cs.correct_count, 0) AS correct_count,
-          CASE 
-            WHEN mr.attempts > 0 
-            THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / mr.attempts), 4)
-            ELSE 0 
-          END AS success_rate,
-          cs.last_attempt_date,
-          mr.updated_at
-        FROM micro_ratings mr
-        LEFT JOIN category_stats cs ON cs.category_id = ${categorySelector}
-        WHERE mr.user_id = $1
-        ORDER BY ${categorySelector}
-      `
-      : `
-        SELECT 
-          ${categorySelector} AS category_id,
-          ${hasSubCategory ? 'mr.sub_category,' : ''}
-          mr.elo_rating,
-          mr.attempts,
-          mr.attempts AS attempts_count,
-          0 AS correct_count,
-          0::DECIMAL AS success_rate,
-          NULL::TIMESTAMP AS last_attempt_date,
-          mr.updated_at
-        FROM micro_ratings mr
-        WHERE mr.user_id = $1
-        ORDER BY ${categorySelector}
-      `;
+          qc.category_id,
+          COUNT(*) FILTER (WHERE qa.is_correct) AS correct_count,
+          COUNT(*) AS total_attempts,
+          MAX(qa.answered_at) AS last_attempt_date
+        FROM question_attempts qa
+        JOIN questions q ON qa.question_id = q.id
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE qa.user_id = $1 AND qc.category_id IS NOT NULL
+        GROUP BY qc.category_id
+      )
+      SELECT 
+        ${categorySelector} AS category_id,
+        ${hasSubCategory ? 'mr.sub_category,' : ''}
+        mr.elo_rating,
+        mr.attempts,
+        mr.attempts AS attempts_count,
+        COALESCE(cs.correct_count, 0) AS correct_count,
+        CASE 
+          WHEN mr.attempts > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / mr.attempts), 4)
+          ELSE 0 
+        END AS success_rate,
+        cs.last_attempt_date,
+        mr.updated_at
+      FROM micro_ratings mr
+      LEFT JOIN category_stats cs ON cs.category_id = ${categorySelector}
+      WHERE mr.user_id = $1
+      ORDER BY ${categorySelector}
+    `;
     
     try {
       const result = await pool.query(query, [userId]);
@@ -345,20 +340,32 @@ class MicroRatingModel {
       // If no ratings exist, initialize them
       if (result.rows.length === 0) {
         await this.initializeUserMicroRatings(userId);
-        // Return initialized ratings (convert numeric keys to numbers)
-        return (Object.keys(SAT_MATH_CATEGORIES) as unknown as (keyof typeof SAT_MATH_CATEGORIES)[]).map(categoryId => {
-          const numericId = Number(categoryId);
+        // Fetch the initialized ratings from database
+        const initializedResult = await pool.query(query, [userId]);
+        return initializedResult.rows.map(row => {
+          const attempts = typeof row.attempts === 'number' ? row.attempts : Number(row.attempts ?? 0);
+          const attemptsCount = typeof row.attempts_count === 'number'
+            ? row.attempts_count
+            : Number(row.attempts_count ?? 0);
+          const correctCount = typeof row.correct_count === 'number'
+            ? row.correct_count
+            : Number(row.correct_count ?? 0);
+          const eloRating = typeof row.elo_rating === 'number'
+            ? row.elo_rating
+            : Number(row.elo_rating ?? DEFAULT_ELO_RATING);
+          const successRate = row.success_rate !== null ? Number(row.success_rate) : 0;
+
           return {
-            category_id: numericId,
-            category_name: SAT_MATH_CATEGORIES[categoryId],
-            ...(hasSubCategory ? { sub_category: categoryId } : {}),
-            elo_rating: DEFAULT_ELO_RATING,
-            attempts: 0,
-            attempts_count: 0,
-            correct_count: 0,
-            success_rate: 0,
-            last_attempt_date: null,
-            updated_at: new Date()
+            category_id: row.category_id,
+            elo_rating: Number.isNaN(eloRating) ? DEFAULT_ELO_RATING : eloRating,
+            attempts: Number.isNaN(attempts) ? 0 : attempts,
+            attempts_count: Number.isNaN(attemptsCount) ? (Number.isNaN(attempts) ? 0 : attempts) : attemptsCount,
+            correct_count: Number.isNaN(correctCount) ? 0 : correctCount,
+            success_rate: Number.isNaN(successRate) ? 0 : successRate,
+            last_attempt_date: row.last_attempt_date,
+            updated_at: row.updated_at,
+            category_name: SAT_MATH_CATEGORIES[row.category_id as keyof typeof SAT_MATH_CATEGORIES] || row.category_id,
+            ...(hasSubCategory ? { sub_category: row.sub_category ?? row.category_id } : {})
           };
         });
       }
@@ -401,52 +408,34 @@ class MicroRatingModel {
    */
   static async getUserCategoryStats(userId: string, categoryId: string): Promise<any> {
     const categoryColumn = await this.getCategoryColumn();
-    const questionCategoryColumn = await this.getQuestionCategoryColumn();
-    const questionCategorySelector = questionCategoryColumn ? `q.${questionCategoryColumn}` : null;
-    const query = questionCategorySelector
-      ? `
+    
+    const query = `
+      WITH category_stats AS (
         SELECT 
-          attempts,
-          attempts AS attempts_count,
-          COALESCE(
-            (SELECT COUNT(*) FROM question_attempts qa 
-             JOIN questions q ON qa.question_id = q.id 
-             WHERE qa.user_id = $1 AND ${questionCategorySelector} = $2 AND qa.is_correct = true), 0
-          ) as correct_count,
-          CASE 
-            WHEN attempts > 0 
-            THEN ROUND((
-              COALESCE(
-                (SELECT COUNT(*) FROM question_attempts qa 
-                 JOIN questions q ON qa.question_id = q.id 
-                 WHERE qa.user_id = $1 AND ${questionCategorySelector} = $2 AND qa.is_correct = true), 0
-              )::DECIMAL / attempts
-            ), 4)
-            ELSE 0 
-          END as success_rate,
-          (
-            SELECT MAX(qa.answered_at)
-            FROM question_attempts qa 
-            JOIN questions q ON qa.question_id = q.id 
-            WHERE qa.user_id = $1 AND ${questionCategorySelector} = $2
-          ) as last_attempt_date,
-          created_at,
-          updated_at
-        FROM micro_ratings 
-        WHERE user_id = $1 AND ${categoryColumn} = $2
-      `
-      : `
-        SELECT 
-          attempts,
-          attempts AS attempts_count,
-          0 AS correct_count,
-          0::DECIMAL AS success_rate,
-          NULL::TIMESTAMP AS last_attempt_date,
-          created_at,
-          updated_at
-        FROM micro_ratings 
-        WHERE user_id = $1 AND ${categoryColumn} = $2
-      `;
+          COUNT(*) FILTER (WHERE qa.is_correct) AS correct_count,
+          COUNT(*) AS total_attempts,
+          MAX(qa.answered_at) AS last_attempt_date
+        FROM question_attempts qa
+        JOIN questions q ON qa.question_id = q.id
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE qa.user_id = $1 AND qc.category_id = $2
+      )
+      SELECT 
+        attempts,
+        attempts AS attempts_count,
+        COALESCE(cs.correct_count, 0) as correct_count,
+        CASE 
+          WHEN attempts > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / attempts), 4)
+          ELSE 0 
+        END as success_rate,
+        cs.last_attempt_date,
+        created_at,
+        updated_at
+      FROM micro_ratings mr
+      LEFT JOIN category_stats cs ON 1=1
+      WHERE user_id = $1 AND ${categoryColumn} = $2
+    `;
     
     try {
       const result = await pool.query(query, [userId, categoryId]);
@@ -479,55 +468,39 @@ class MicroRatingModel {
    */
   static async getTopPerformersInCategory(categoryId: string, limit: number = 10): Promise<any[]> {
     const categoryColumn = await this.getCategoryColumn();
-    const questionCategoryColumn = await this.getQuestionCategoryColumn();
-    const questionCategorySelector = questionCategoryColumn ? `q.${questionCategoryColumn}` : null;
-    const query = questionCategorySelector
-      ? `
+    
+    const query = `
+      WITH category_stats AS (
         SELECT 
-          mr.elo_rating,
-          mr.attempts,
-          mr.attempts AS attempts_count,
-          COALESCE(
-            (SELECT COUNT(*) FROM question_attempts qa 
-             JOIN questions q ON qa.question_id = q.id 
-             WHERE qa.user_id = mr.user_id AND ${questionCategorySelector} = $1 AND qa.is_correct = true), 0
-          ) as correct_count,
-          CASE 
-            WHEN mr.attempts > 0 
-            THEN ROUND((
-              COALESCE(
-                (SELECT COUNT(*) FROM question_attempts qa 
-                 JOIN questions q ON qa.question_id = q.id 
-                 WHERE qa.user_id = mr.user_id AND ${questionCategorySelector} = $1 AND qa.is_correct = true), 0
-              )::DECIMAL / mr.attempts
-            ), 4)
-            ELSE 0 
-          END as success_rate,
-          u.username,
-          u.id as user_id,
-          mr.updated_at
-        FROM micro_ratings mr
-        JOIN users u ON mr.user_id = u.id
-        WHERE mr.${categoryColumn} = $1 AND mr.attempts > 0
-        ORDER BY mr.elo_rating DESC
-        LIMIT $2
-      `
-      : `
-        SELECT 
-          mr.elo_rating,
-          mr.attempts,
-          mr.attempts AS attempts_count,
-          0 AS correct_count,
-          0::DECIMAL AS success_rate,
-          u.username,
-          u.id as user_id,
-          mr.updated_at
-        FROM micro_ratings mr
-        JOIN users u ON mr.user_id = u.id
-        WHERE mr.${categoryColumn} = $1 AND mr.attempts > 0
-        ORDER BY mr.elo_rating DESC
-        LIMIT $2
-      `;
+          qa.user_id,
+          COUNT(*) FILTER (WHERE qa.is_correct) AS correct_count,
+          COUNT(*) AS total_attempts
+        FROM question_attempts qa
+        JOIN questions q ON qa.question_id = q.id
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE qc.category_id = $1
+        GROUP BY qa.user_id
+      )
+      SELECT 
+        mr.elo_rating,
+        mr.attempts,
+        mr.attempts AS attempts_count,
+        COALESCE(cs.correct_count, 0) as correct_count,
+        CASE 
+          WHEN mr.attempts > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / mr.attempts), 4)
+          ELSE 0 
+        END as success_rate,
+        u.username,
+        u.id as user_id,
+        mr.updated_at
+      FROM micro_ratings mr
+      JOIN users u ON mr.user_id = u.id
+      LEFT JOIN category_stats cs ON mr.user_id = cs.user_id
+      WHERE mr.${categoryColumn} = $1 AND mr.attempts > 0
+      ORDER BY mr.elo_rating DESC
+      LIMIT $2
+    `;
     
     try {
       const result = await pool.query(query, [categoryId, limit]);

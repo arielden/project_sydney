@@ -7,6 +7,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import AdminRoute from './components/common/AdminRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Header from './components/common/Header';
+import Footer from './components/common/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -27,15 +28,24 @@ import AdminActivityLog from './pages/admin/AdminActivityLog';
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   
-  // Hide header on quiz pages for full-screen experience
+  // Hide header and footer on quiz pages for full-screen experience
   const hideHeader = location.pathname.startsWith('/quiz/active') || 
                      location.pathname.startsWith('/quiz/results') ||
                      location.pathname.startsWith('/admin');
   
+  const hideFooter = location.pathname.startsWith('/quiz/active') || 
+                     location.pathname.startsWith('/quiz/results') ||
+                     location.pathname.startsWith('/admin') ||
+                     location.pathname === '/login' ||
+                     location.pathname === '/register';
+  
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen bg-white">
       {!hideHeader && <Header />}
-      {children}
+      <main className="flex-grow">
+        {children}
+      </main>
+      {!hideFooter && <Footer />}
     </div>
   );
 }

@@ -73,9 +73,9 @@ router.get('/micro', authenticateToken, async (req: AuthenticatedRequest, res) =
     const microRatings = await MicroRatingModel.getUserAllCategoryRatings(userId);
 
     res.json(formatSuccessResponse('Micro ratings retrieved', microRatings));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching micro ratings:', error);
-    res.status(500).json(formatErrorResponse('Failed to fetch micro ratings'));
+    res.status(500).json(formatErrorResponse('Failed to fetch micro ratings: ' + error.message));
   }
 });
 

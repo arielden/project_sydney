@@ -1,4 +1,4 @@
-# Sydney Adaptive Learning Platform
+# Sidney Adaptive Learning Platform
 
 A modern adaptive learning platform built with React + TypeScript + Vite, PostgreSQL, and Docker.
 
@@ -13,7 +13,7 @@ A modern adaptive learning platform built with React + TypeScript + Vite, Postgr
 1. **Clone and setup environment:**
 ```bash
 git clone <repository-url>
-cd project_sydney
+cd project_sidney
 cp .env.example .env
 ```
 
@@ -28,7 +28,7 @@ docker compose up -d --build
 
 3. **Access the application:**
 - **Frontend**: http://localhost:5173
-- **pgAdmin**: http://localhost:5050 (admin@sydney.com / admin123)
+- **pgAdmin**: http://localhost:5050 (admin@sidney.com / admin123)
 - **Database**: localhost:5432 (admin / admin123)
 
 ### Common Docker Commands
@@ -58,7 +58,7 @@ docker compose restart frontend
 
 # Execute command in container
 docker compose exec frontend npm install new-package
-docker compose exec postgres psql -U admin -d sydney_db
+docker compose exec postgres psql -U admin -d sidney_db
 ```
 
 ### Local Development (Alternative)
@@ -83,7 +83,7 @@ npm run dev
 ## 📁 Project Structure
 
 ```
-project_sydney/
+project_sidney/
 ├── src/                      # React application source
 │   ├── components/           # Reusable UI components
 │   ├── pages/               # Page components (routing)
@@ -103,22 +103,22 @@ project_sydney/
 ## 🐳 Docker Services
 
 ### Frontend (React + Vite)
-- **Container**: `sydney_frontend`
+- **Container**: `sidney_frontend`
 - **Port**: 5173
 - **Features**: Hot reload, TypeScript, Tailwind CSS
 - **Volume mounts**: Source code for development
 
 ### Database (PostgreSQL)
-- **Container**: `sydney_postgres`
+- **Container**: `sidney_postgres`
 - **Port**: 5432
-- **Database**: `sydney_db`
+- **Database**: `sidney_db`
 - **User**: `admin` / `admin123`
 - **Persistent storage**: Docker volume
 
 ### pgAdmin (Database Management)
-- **Container**: `sydney_pgadmin`
+- **Container**: `sidney_pgadmin`
 - **Port**: 5050
-- **Login**: `admin@sydney.com` / `admin123`
+- **Login**: `admin@sidney.com` / `admin123`
 
 ## 🔧 Environment Configuration
 
@@ -130,13 +130,13 @@ FRONTEND_PORT=5173
 VITE_API_URL=http://localhost:3001
 
 # Database
-POSTGRES_DB=sydney_db
+POSTGRES_DB=sidney_db
 POSTGRES_USER=admin
 POSTGRES_PASSWORD=admin123
 POSTGRES_PORT=5432
 
 # pgAdmin
-PGADMIN_EMAIL=admin@sydney.com
+PGADMIN_EMAIL=admin@sidney.com
 PGADMIN_PASSWORD=admin123
 PGADMIN_PORT=5050
 ```
