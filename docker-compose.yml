@@ -45,7 +45,7 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sidney_db}
       - FRONTEND_URL=http://localhost:5173
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && sh ./init-db.sh && npm run dev"
     networks:
       - sidney_network
     restart: unless-stopped
@@ -67,7 +67,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - sidney_network
     restart: unless-stopped
