@@ -32,10 +32,13 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      // Log the rejected origin for debugging but don't throw
+      console.log(`CORS request from unauthorized origin: ${origin}`);
+      callback(null, false);
     }
   },
   credentials: true,
