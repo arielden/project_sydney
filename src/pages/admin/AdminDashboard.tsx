@@ -42,42 +42,42 @@ const AdminDashboard: React.FC = () => {
       title: 'Total Users',
       value: stats.totalUsers,
       icon: Users,
-      color: 'bg-blue-500',
+      color: 'bg-blue-900',
       link: '/admin/tables/users'
     },
     {
       title: 'Admin Users',
       value: stats.adminUsers,
       icon: Users,
-      color: 'bg-purple-500',
+      color: 'bg-blue-700',
       link: '/admin/tables/users'
     },
     {
       title: 'Total Questions',
       value: stats.totalQuestions,
       icon: HelpCircle,
-      color: 'bg-green-500',
+      color: 'bg-cyan-500',
       link: '/admin/tables/questions'
     },
     {
       title: 'Quiz Sessions',
       value: stats.totalQuizSessions,
       icon: ClipboardList,
-      color: 'bg-orange-500',
+      color: 'bg-yellow-500',
       link: '/admin/tables/quiz_sessions'
     },
     {
       title: 'Question Attempts',
       value: stats.totalAttempts,
       icon: Activity,
-      color: 'bg-pink-500',
+      color: 'bg-cyan-600',
       link: '/admin/tables/question_attempts'
     },
     {
       title: 'Player Ratings',
       value: stats.totalRatings,
       icon: TrendingUp,
-      color: 'bg-indigo-500',
+      color: 'bg-blue-800',
       link: '/admin/tables/player_ratings'
     }
   ] : [];
@@ -91,13 +91,13 @@ const AdminDashboard: React.FC = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-500 mt-1">Monitor and manage your application data</p>
+            <h1 className="text-4xl font-bold text-blue-900">Dashboard Overview</h1>
+            <p className="text-gray-600 mt-1">Monitor and manage your application data</p>
           </div>
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -122,11 +122,11 @@ const AdminDashboard: React.FC = () => {
                 <Link
                   key={card.title}
                   to={card.link}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-gray-500">{card.title}</p>
+                      <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{card.title}</p>
                       <p className="text-3xl font-bold text-gray-900 mt-2">
                         {card.value.toLocaleString()}
                       </p>
@@ -141,38 +141,38 @@ const AdminDashboard: React.FC = () => {
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
                 <Database className="w-5 h-5" />
                 Quick Actions
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Link
                   to="/admin/tables"
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors"
                 >
-                  <span className="font-medium">View All Tables</span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">View All Tables</span>
+                  <ArrowRight className="w-4 h-4 text-blue-900" />
                 </Link>
                 <Link
                   to="/admin/tables/users/new"
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors"
                 >
-                  <span className="font-medium">Add New User</span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">Add New User</span>
+                  <ArrowRight className="w-4 h-4 text-blue-900" />
                 </Link>
                 <Link
                   to="/admin/tables/questions/new"
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors"
                 >
-                  <span className="font-medium">Add Question</span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">Add Question</span>
+                  <ArrowRight className="w-4 h-4 text-blue-900" />
                 </Link>
                 <Link
                   to="/admin/activity"
-                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors"
                 >
-                  <span className="font-medium">Activity Log</span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">Activity Log</span>
+                  <ArrowRight className="w-4 h-4 text-blue-900" />
                 </Link>
               </div>
             </div>
@@ -180,28 +180,28 @@ const AdminDashboard: React.FC = () => {
             {/* Database Statistics */}
             {stats && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-blue-900 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
                   Performance Metrics
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-3xl font-bold text-blue-600">
+                  <div className="text-center p-4 bg-slate-50 rounded-lg border border-gray-200">
+                    <p className="text-3xl font-bold text-blue-900">
                       {stats.avgCorrectRate.toFixed(1)}%
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">Average Correct Rate</p>
+                    <p className="text-sm text-gray-600 mt-1">Average Correct Rate</p>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-3xl font-bold text-green-600">
+                  <div className="text-center p-4 bg-slate-50 rounded-lg border border-gray-200">
+                    <p className="text-3xl font-bold text-cyan-500">
                       {stats.questionsPerCategory.length}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">Question Categories</p>
+                    <p className="text-sm text-gray-600 mt-1">Question Categories</p>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <p className="text-3xl font-bold text-purple-600">
+                  <div className="text-center p-4 bg-slate-50 rounded-lg border border-gray-200">
+                    <p className="text-3xl font-bold text-yellow-500">
                       {stats.totalMicroRatings}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">Micro Ratings</p>
+                    <p className="text-sm text-gray-600 mt-1">Micro Ratings</p>
                   </div>
                 </div>
 
@@ -214,7 +214,7 @@ const AdminDashboard: React.FC = () => {
                           <span className="w-32 text-sm text-gray-600 truncate">{cat.category}</span>
                           <div className="flex-1 bg-gray-200 rounded-full h-4">
                             <div
-                              className="bg-blue-500 h-4 rounded-full"
+                              className="bg-blue-900 h-4 rounded-full transition-all"
                               style={{ 
                                 width: `${(cat.count / stats.totalQuestions) * 100}%` 
                               }}

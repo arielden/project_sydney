@@ -61,21 +61,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
   const displayBreadcrumbs = getBreadcrumbs();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-50">
       {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+      <nav className="bg-blue-900 shadow-md border-b border-blue-800 fixed top-0 left-0 right-0 z-50">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/admin" className="flex items-center">
-                <Settings className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">Admin Panel</span>
+                <Settings className="h-8 w-8 text-yellow-400" />
+                <span className="ml-2 text-xl font-bold text-white">Admin Panel</span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
               <Link 
                 to="/dashboard" 
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center text-blue-100 hover:text-white transition-colors font-medium"
               >
                 <Home className="h-5 w-5 mr-1" />
                 <span>Back to App</span>
@@ -87,7 +87,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
 
       <div className="flex pt-16">
         {/* Sidebar */}
-        <aside className="w-64 bg-white shadow-sm fixed left-0 top-16 bottom-0 overflow-y-auto border-r border-gray-200">
+        <aside className="w-64 bg-white shadow-md fixed left-0 top-16 bottom-0 overflow-y-auto border-r border-gray-200">
           <nav className="mt-5 px-2">
             <div className="space-y-1">
               {sidebarLinks.map((link) => {
@@ -102,12 +102,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
                     className={`
                       group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors
                       ${isActive 
-                        ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700' 
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? 'bg-blue-900 text-white border-l-4 border-blue-900' 
+                        : 'text-gray-600 hover:bg-slate-100 hover:text-blue-900'
                       }
                     `}
                   >
-                    <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                    <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-yellow-400' : 'text-gray-400 group-hover:text-blue-700'}`} />
                     {link.name}
                   </Link>
                 );
@@ -117,25 +117,25 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
 
           {/* Quick Stats */}
           <div className="mt-8 px-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
               Quick Links
             </h3>
             <div className="mt-3 space-y-2">
               <Link 
                 to="/admin/tables/player_ratings" 
-                className="block text-sm text-gray-600 hover:text-blue-600"
+                className="block text-sm text-gray-600 hover:text-blue-900 font-medium transition-colors"
               >
                 Player Ratings
               </Link>
               <Link 
                 to="/admin/tables/micro_ratings" 
-                className="block text-sm text-gray-600 hover:text-blue-600"
+                className="block text-sm text-gray-600 hover:text-blue-900 font-medium transition-colors"
               >
                 Micro Ratings
               </Link>
               <Link 
                 to="/admin/tables/question_attempts" 
-                className="block text-sm text-gray-600 hover:text-blue-600"
+                className="block text-sm text-gray-600 hover:text-blue-900 font-medium transition-colors"
               >
                 Question Attempts
               </Link>
@@ -149,7 +149,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
           <nav className="flex mb-6" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-2">
               <li>
-                <Link to="/admin" className="text-gray-400 hover:text-gray-500">
+                <Link to="/admin" className="text-gray-400 hover:text-blue-900">
                   <Home className="h-4 w-4" />
                 </Link>
               </li>
@@ -157,13 +157,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, breadcrumbs }) => {
                 <li key={crumb.href || index} className="flex items-center">
                   <ChevronRight className="h-4 w-4 text-gray-400 mx-2" />
                   {index === displayBreadcrumbs.length - 1 || !crumb.href ? (
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-blue-900">
                       {crumb.label}
                     </span>
                   ) : (
                     <Link 
                       to={crumb.href} 
-                      className="text-sm text-gray-500 hover:text-gray-700"
+                      className="text-sm text-gray-500 hover:text-blue-900 font-medium transition-colors"
                     >
                       {crumb.label}
                     </Link>

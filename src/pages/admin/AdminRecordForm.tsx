@@ -221,7 +221,7 @@ const AdminRecordForm: React.FC = () => {
             }
           }}
           disabled={isReadOnly}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100"
         >
           <option value="">Select...</option>
           {foreignKeyOptions[column.name].map((opt) => (
@@ -241,7 +241,7 @@ const AdminRecordForm: React.FC = () => {
           value={value as string || 'user'}
           onChange={(e) => handleChange(column.name, e.target.value)}
           disabled={isReadOnly}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100"
         >
           <option value="user">User</option>
           <option value="admin">Admin</option>
@@ -258,7 +258,7 @@ const AdminRecordForm: React.FC = () => {
           checked={Boolean(value)}
           onChange={(e) => handleChange(column.name, e.target.checked)}
           disabled={isReadOnly}
-          className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
+          className="w-5 h-5 text-blue-900 border-gray-300 rounded focus:ring-blue-900 disabled:bg-gray-100"
         />
       );
     }
@@ -272,7 +272,7 @@ const AdminRecordForm: React.FC = () => {
           onChange={(e) => handleChange(column.name, e.target.value)}
           disabled={isReadOnly}
           rows={4}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 font-mono text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100 font-mono text-sm"
         />
       );
     }
@@ -287,7 +287,7 @@ const AdminRecordForm: React.FC = () => {
           value={dateValue}
           onChange={(e) => handleChange(column.name, e.target.value ? new Date(e.target.value).toISOString() : null)}
           disabled={isReadOnly}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100"
         />
       );
     }
@@ -302,7 +302,7 @@ const AdminRecordForm: React.FC = () => {
           onChange={(e) => handleChange(column.name, e.target.value ? parseFloat(e.target.value) : null)}
           disabled={isReadOnly}
           step={column.type.includes('int') ? '1' : 'any'}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100"
         />
       );
     }
@@ -315,7 +315,7 @@ const AdminRecordForm: React.FC = () => {
         value={value !== null && value !== undefined ? String(value) : ''}
         onChange={(e) => handleChange(column.name, e.target.value || null)}
         disabled={isReadOnly}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 disabled:bg-gray-100"
       />
     );
   };
@@ -342,15 +342,15 @@ const AdminRecordForm: React.FC = () => {
         <div className="flex items-center gap-4 mb-6">
           <Link
             to={`/admin/tables/${tableName}`}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+            className="p-2 text-gray-500 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-4xl font-bold text-blue-900">
               {isNew ? `Create New Record` : `Edit Record #${recordId}`}
             </h1>
-            <p className="text-gray-500">Table: {tableName}</p>
+            <p className="text-gray-600 font-medium">Table: {tableName}</p>
           </div>
         </div>
 
@@ -363,7 +363,7 @@ const AdminRecordForm: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+            <RefreshCw className="w-8 h-8 animate-spin text-blue-900" />
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -383,7 +383,7 @@ const AdminRecordForm: React.FC = () => {
                     id="password"
                     value={formData.password as string || ''}
                     onChange={(e) => handleChange('password', e.target.value || null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900"
                     placeholder="Minimum 8 characters"
                     minLength={8}
                     required
@@ -434,14 +434,14 @@ const AdminRecordForm: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-3">
               <Link
                 to={`/admin/tables/${tableName}`}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors font-medium"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium transition-colors"
               >
                 {saving ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />

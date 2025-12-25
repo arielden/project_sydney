@@ -75,18 +75,18 @@ const AdminTables: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Database className="w-7 h-7" />
+            <h1 className="text-4xl font-bold text-blue-900 flex items-center gap-2">
+              <Database className="w-8 h-8" />
               Database Tables
             </h1>
-            <p className="text-gray-500 mt-1">
+            <p className="text-gray-600 mt-1">
               {tables.length} tables · {tables.reduce((sum, t) => sum + t.count, 0).toLocaleString()} total records
             </p>
           </div>
           <button
             onClick={loadTables}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -101,7 +101,7 @@ const AdminTables: React.FC = () => {
             placeholder="Search tables..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900"
           />
         </div>
 
@@ -113,7 +113,7 @@ const AdminTables: React.FC = () => {
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
+            <RefreshCw className="w-8 h-8 animate-spin text-blue-900" />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -121,31 +121,31 @@ const AdminTables: React.FC = () => {
               <Link
                 key={table.name}
                 to={`/admin/tables/${table.name}`}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-blue-300 transition-all group"
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-900 transition-all group"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{getTableIcon(table.name)}</span>
                     <div>
-                      <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">
+                      <h3 className="font-semibold text-gray-900 group-hover:text-blue-900">
                         {table.name}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-600">
                         {getTableDescription(table.name)}
                       </p>
                     </div>
                   </div>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-900" />
                 </div>
                 
                 <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Table className="w-4 h-4" />
                     <span>{Array.isArray(table.columns) ? table.columns.length : table.columns} columns</span>
                   </div>
-                  <span className="text-lg font-bold text-gray-900">
+                  <span className="text-lg font-bold text-blue-900">
                     {table.count.toLocaleString()} 
-                    <span className="text-sm font-normal text-gray-500 ml-1">records</span>
+                    <span className="text-sm font-normal text-gray-600 ml-1">records</span>
                   </span>
                 </div>
               </Link>
@@ -157,7 +157,7 @@ const AdminTables: React.FC = () => {
           <div className="text-center py-12">
             <Database className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900">No tables found</h3>
-            <p className="text-gray-500 mt-1">
+            <p className="text-gray-600 mt-1">
               No tables match "{searchTerm}"
             </p>
           </div>

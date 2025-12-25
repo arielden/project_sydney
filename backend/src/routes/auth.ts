@@ -73,9 +73,18 @@ export interface AuthResponse {
  */
 async function handleRegister(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
+    // Log registration attempt for debugging
+    console.log('📝 Registration attempt:', {
+      email: req.body.email,
+      username: req.body.username,
+      hasPassword: !!req.body.password,
+      bodyKeys: Object.keys(req.body)
+    });
+
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       res.status(400).json(formatErrorResponse(
         'Validation errors',
         errors.array().map(err => err.msg)
@@ -106,6 +115,7 @@ async function handleRegister(req: AuthenticatedRequest, res: Response): Promise
 
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.isValid) {
+      console.log('❌ Password validation failed:', passwordValidation.errors);
       res.status(400).json(formatErrorResponse(
         'Password does not meet requirements',
         passwordValidation.errors
