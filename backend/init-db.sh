@@ -329,10 +329,6 @@ CREATE TABLE IF NOT EXISTS public.question_attempts (
     expected_score numeric(5,4),
     elo_change integer,
     answered_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    player_elo_before integer,
-    player_elo_after integer,
-    question_elo_before integer,
-    question_elo_after integer,
     CONSTRAINT question_attempts_pkey PRIMARY KEY (id),
     CONSTRAINT question_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
     CONSTRAINT question_attempts_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.questions(id) ON DELETE CASCADE,
@@ -387,7 +383,6 @@ CREATE INDEX IF NOT EXISTS idx_question_attempts_user_id ON public.question_atte
 CREATE INDEX IF NOT EXISTS idx_question_attempts_question_id ON public.question_attempts USING btree (question_id);
 CREATE INDEX IF NOT EXISTS idx_question_attempts_session_id ON public.question_attempts USING btree (session_id);
 CREATE INDEX IF NOT EXISTS idx_question_attempts_created ON public.question_attempts USING btree (created_at);
-CREATE INDEX IF NOT EXISTS idx_question_attempts_elo ON public.question_attempts USING btree (player_elo_before, question_elo_before);
 
 CREATE INDEX IF NOT EXISTS idx_admin_activity_log_admin_user ON public.admin_activity_log USING btree (admin_user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_activity_log_action ON public.admin_activity_log USING btree (action);

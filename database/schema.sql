@@ -341,10 +341,6 @@ CREATE TABLE public.question_attempts (
     expected_score numeric(5,4),
     elo_change integer,
     answered_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    player_elo_before integer,
-    player_elo_after integer,
-    question_elo_before integer,
-    question_elo_after integer,
     CONSTRAINT question_attempts_pkey PRIMARY KEY (id),
     CONSTRAINT question_attempts_user_id_fkey FOREIGN KEY (user_id) 
         REFERENCES public.users(id) ON DELETE CASCADE,
@@ -559,8 +555,6 @@ CREATE INDEX idx_question_attempts_question ON public.question_attempts
     USING btree (question_id);
 CREATE INDEX idx_question_attempts_session ON public.question_attempts 
     USING btree (session_id);
-CREATE INDEX idx_question_attempts_elo ON public.question_attempts 
-    USING btree (player_elo_before, question_elo_before);
 
 -- Admin Activity Log indexes
 CREATE INDEX idx_admin_activity_log_admin_user ON public.admin_activity_log 
