@@ -53,6 +53,7 @@ END $$;
 -- UTILITY FUNCTIONS
 -- ============================================================================
 
+DROP FUNCTION IF EXISTS public.calculate_player_k_factor(integer);
 CREATE FUNCTION public.calculate_player_k_factor(games_played integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -67,6 +68,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.calculate_question_k_factor(integer);
 CREATE FUNCTION public.calculate_question_k_factor(times_rated integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -81,6 +83,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.calculate_question_reliability(integer);
 CREATE FUNCTION public.calculate_question_reliability(times_rated integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -93,6 +96,20 @@ $$;
 -- TRIGGER FUNCTIONS
 -- ============================================================================
 
+-- Drop triggers before dropping functions (they depend on functions)
+DROP TRIGGER IF EXISTS update_micro_ratings_timestamp ON public.micro_ratings;
+DROP TRIGGER IF EXISTS trigger_update_player_k_factor ON public.player_ratings;
+DROP TRIGGER IF EXISTS trigger_update_question_k_factor ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_reliability ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_stats ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_types_updated_at ON public.question_types;
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
+DROP TRIGGER IF EXISTS update_player_ratings_updated_at ON public.player_ratings;
+DROP TRIGGER IF EXISTS update_categories_updated_at ON public.categories;
+DROP TRIGGER IF EXISTS update_questions_updated_at ON public.questions;
+
+-- Now drop and recreate functions
+DROP FUNCTION IF EXISTS public.update_micro_ratings_timestamp();
 CREATE FUNCTION public.update_micro_ratings_timestamp() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -102,6 +119,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_player_k_factor();
 CREATE FUNCTION public.update_player_k_factor() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -112,6 +130,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_question_k_factor();
 CREATE FUNCTION public.update_question_k_factor() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -122,6 +141,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_question_reliability();
 CREATE FUNCTION public.update_question_reliability() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -132,6 +152,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_question_stats();
 CREATE FUNCTION public.update_question_stats() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -143,6 +164,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_question_types_updated_at();
 CREATE FUNCTION public.update_question_types_updated_at() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -152,6 +174,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.update_updated_at_column();
 CREATE FUNCTION public.update_updated_at_column() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -165,15 +188,15 @@ $$;
 -- SEQUENCES
 -- ============================================================================
 
-CREATE SEQUENCE public.users_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.player_ratings_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.micro_ratings_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.question_types_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.questions_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.question_categories_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.quiz_sessions_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.question_attempts_id_seq AS integer START WITH 1 INCREMENT BY 1;
-CREATE SEQUENCE public.admin_activity_log_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.users_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.player_ratings_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.micro_ratings_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.question_types_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.questions_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.question_categories_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.quiz_sessions_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.question_attempts_id_seq AS integer START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE IF NOT EXISTS public.admin_activity_log_id_seq AS integer START WITH 1 INCREMENT BY 1;
 
 -- ============================================================================
 -- TABLES
@@ -249,12 +272,10 @@ CREATE TABLE IF NOT EXISTS public.micro_ratings (
     category_id integer NOT NULL,
     elo_rating integer DEFAULT 1200,
     confidence numeric(3,2) DEFAULT 0.5,
-    attempts integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT micro_ratings_pkey PRIMARY KEY (id),
     CONSTRAINT micro_ratings_user_id_category_id_key UNIQUE (user_id, category_id),
-    CONSTRAINT micro_ratings_attempts_check CHECK ((attempts >= 0)),
     CONSTRAINT micro_ratings_confidence_check CHECK (((confidence >= (0)::numeric) AND (confidence <= (1)::numeric))),
     CONSTRAINT micro_ratings_elo_rating_check CHECK ((elo_rating >= 0)),
     CONSTRAINT micro_ratings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,

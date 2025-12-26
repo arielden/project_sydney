@@ -1,4 +1,5 @@
 import pool from '../config/database';
+import { ELOCalculator } from '../utils/eloCalculator';
 
 // SAT Math Categories - 20 official SAT math categories (numeric IDs)
 // Mapped to database category table IDs
@@ -59,7 +60,6 @@ export interface MicroRating {
   category_id: number;
   category_name?: string;
   elo_rating: number;
-  attempts: number;
   attempts_count?: number;
   correct_count?: number;
   success_rate?: number;
@@ -217,13 +217,13 @@ class MicroRatingModel {
       const categoryIds = categoriesResult.rows.map((row: any) => row.id);
       
       const insertQuery = `
-        INSERT INTO micro_ratings (user_id, category_id, elo_rating, attempts)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO micro_ratings (user_id, category_id, elo_rating)
+        VALUES ($1, $2, $3)
         ON CONFLICT (user_id, category_id) DO NOTHING
       `;
-      
+
       const insertPromises = categoryIds.map(categoryId => {
-        return pool.query(insertQuery, [userId, categoryId, DEFAULT_ELO_RATING, 0]);
+        return pool.query(insertQuery, [userId, categoryId, DEFAULT_ELO_RATING]);
       });
       
       await Promise.all(insertPromises);
@@ -281,11 +281,7 @@ class MicroRatingModel {
     try {
       await poolOrClient.query(updateQuery, [userId, categoryId, newRating]);
       
-      // Also increment attempts count
-      await poolOrClient.query(
-        `UPDATE micro_ratings SET attempts = attempts + 1 WHERE user_id = $1 AND ${categoryColumn} = $2`,
-        [userId, categoryId]
-      );
+      // attempts are derived from question_attempts; do not increment a stored attempts column
     } catch (error) {
       console.error('Error updating user category rating:', error);
       throw new Error('Failed to update category rating');
@@ -318,12 +314,11 @@ class MicroRatingModel {
         ${categorySelector} AS category_id,
         ${hasSubCategory ? 'mr.sub_category,' : ''}
         mr.elo_rating,
-        mr.attempts,
-        mr.attempts AS attempts_count,
+        COALESCE(cs.total_attempts, 0) AS attempts_count,
         COALESCE(cs.correct_count, 0) AS correct_count,
         CASE 
-          WHEN mr.attempts > 0 
-          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / COALESCE(cs.total_attempts, mr.attempts)), 4)
+          WHEN COALESCE(cs.total_attempts, 0) > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / COALESCE(cs.total_attempts, 0)), 4)
           ELSE 0 
         END AS success_rate,
         cs.last_attempt_date,
@@ -343,7 +338,6 @@ class MicroRatingModel {
         // Fetch the initialized ratings from database
         const initializedResult = await pool.query(query, [userId]);
         return initializedResult.rows.map(row => {
-          const attempts = typeof row.attempts === 'number' ? row.attempts : Number(row.attempts ?? 0);
           const attemptsCount = typeof row.attempts_count === 'number'
             ? row.attempts_count
             : Number(row.attempts_count ?? 0);
@@ -358,8 +352,7 @@ class MicroRatingModel {
           return {
             category_id: row.category_id,
             elo_rating: Number.isNaN(eloRating) ? DEFAULT_ELO_RATING : eloRating,
-            attempts: Number.isNaN(attempts) ? 0 : attempts,
-            attempts_count: Number.isNaN(attemptsCount) ? (Number.isNaN(attempts) ? 0 : attempts) : attemptsCount,
+            attempts_count: Number.isNaN(attemptsCount) ? 0 : attemptsCount,
             correct_count: Number.isNaN(correctCount) ? 0 : correctCount,
             success_rate: Number.isNaN(successRate) ? 0 : successRate,
             last_attempt_date: row.last_attempt_date,
@@ -372,7 +365,6 @@ class MicroRatingModel {
       
       // Add category names
       return result.rows.map(row => {
-        const attempts = typeof row.attempts === 'number' ? row.attempts : Number(row.attempts ?? 0);
         const attemptsCount = typeof row.attempts_count === 'number'
           ? row.attempts_count
           : Number(row.attempts_count ?? 0);
@@ -387,8 +379,7 @@ class MicroRatingModel {
         return {
           category_id: row.category_id,
           elo_rating: Number.isNaN(eloRating) ? DEFAULT_ELO_RATING : eloRating,
-          attempts: Number.isNaN(attempts) ? 0 : attempts,
-          attempts_count: Number.isNaN(attemptsCount) ? (Number.isNaN(attempts) ? 0 : attempts) : attemptsCount,
+          attempts_count: Number.isNaN(attemptsCount) ? 0 : attemptsCount,
           correct_count: Number.isNaN(correctCount) ? 0 : correctCount,
           success_rate: Number.isNaN(successRate) ? 0 : successRate,
           last_attempt_date: row.last_attempt_date,
@@ -421,12 +412,11 @@ class MicroRatingModel {
         WHERE qa.user_id = $1 AND qc.category_id = $2
       )
       SELECT 
-        attempts,
-        attempts AS attempts_count,
+        COALESCE(cs.total_attempts, 0) AS attempts_count,
         COALESCE(cs.correct_count, 0) as correct_count,
         CASE 
-          WHEN attempts > 0 
-          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / attempts), 4)
+          WHEN COALESCE(cs.total_attempts, 0) > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / COALESCE(cs.total_attempts, 0)), 4)
           ELSE 0 
         END as success_rate,
         cs.last_attempt_date,
@@ -443,7 +433,6 @@ class MicroRatingModel {
 
       if (!stats) {
         return {
-          attempts: 0,
           attempts_count: 0,
           correct_count: 0,
           success_rate: 0,
@@ -454,8 +443,12 @@ class MicroRatingModel {
       }
 
       return {
-        ...stats,
-        success_rate: stats.success_rate !== null ? parseFloat(stats.success_rate) : 0
+        attempts_count: parseInt(stats.attempts_count ?? '0', 10) || 0,
+        correct_count: parseInt(stats.correct_count ?? '0', 10) || 0,
+        success_rate: stats.success_rate !== null ? parseFloat(stats.success_rate) : 0,
+        last_attempt_date: stats.last_attempt_date,
+        created_at: stats.created_at,
+        updated_at: stats.updated_at
       };
     } catch (error) {
       console.error('Error getting user category stats:', error);
@@ -483,12 +476,11 @@ class MicroRatingModel {
       )
       SELECT 
         mr.elo_rating,
-        mr.attempts,
-        mr.attempts AS attempts_count,
+        COALESCE(cs.total_attempts, 0) AS attempts_count,
         COALESCE(cs.correct_count, 0) as correct_count,
         CASE 
-          WHEN mr.attempts > 0 
-          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / mr.attempts), 4)
+          WHEN COALESCE(cs.total_attempts, 0) > 0 
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / COALESCE(cs.total_attempts, 0)), 4)
           ELSE 0 
         END as success_rate,
         u.username,
@@ -497,7 +489,7 @@ class MicroRatingModel {
       FROM micro_ratings mr
       JOIN users u ON mr.user_id = u.id
       LEFT JOIN category_stats cs ON mr.user_id = cs.user_id
-      WHERE mr.${categoryColumn} = $1 AND mr.attempts > 0
+      WHERE mr.${categoryColumn} = $1 AND COALESCE(cs.total_attempts, 0) > 0
       ORDER BY mr.elo_rating DESC
       LIMIT $2
     `;
@@ -529,7 +521,7 @@ class MicroRatingModel {
     try {
       // Get current micro rating stats for this user and category
       const currentRatingQuery = `
-        SELECT elo_rating, attempts, k_factor, confidence
+        SELECT elo_rating, confidence
         FROM micro_ratings 
         WHERE user_id = $1 AND ${categoryColumn} = $2
       `;
@@ -540,7 +532,7 @@ class MicroRatingModel {
       let newConfidence = 0.5;
       let currentElo = DEFAULT_ELO_RATING;
       let currentAttempts = 0;
-      let currentKFactor = 32;
+      let currentKFactor = 32; // Default K-factor for micro ratings
       let currentConfidence = 0.5;
       
       if (currentRatingResult.rows.length === 0) {
@@ -549,28 +541,70 @@ class MicroRatingModel {
         // Fall through to apply ELO calculation for the first attempt
       } else {
         const currentRating = currentRatingResult.rows[0];
-        currentElo = currentRating.elo_rating || DEFAULT_ELO_RATING;
-        currentAttempts = currentRating.attempts || 0;
-        currentKFactor = currentRating.k_factor || 32;
-        currentConfidence = currentRating.confidence || 0.5;
+        currentElo = Number(currentRating.elo_rating) || DEFAULT_ELO_RATING;
+        currentConfidence = Number(currentRating.confidence);
+        if (!Number.isFinite(currentConfidence)) currentConfidence = 0.5;
       }
-      
-      // Calculate ELO change using the same formula as questions/players
-      // We treat the category itself as if it has a rating (using a default of 1200 for comparison)
-      const categoryBaseRating = 1200; // Neutral rating for category
-      
-      // Calculate expected probability of being correct
-      const expectedProbability = 1 / (1 + Math.pow(10, (categoryBaseRating - currentElo) / 400));
-      
-      // Calculate actual score (1 if correct, 0 if incorrect)
-      const actualScore = isCorrect ? 1 : 0;
-      
-      // Calculate ELO change
-      const eloChange = Math.round(currentKFactor * (actualScore - expectedProbability));
-      newElo = Math.max(0, currentElo + eloChange); // Prevent negative ratings
-      
-      // Update confidence level based on performance
-      // If correct, increase confidence; if incorrect, decrease it
+
+      // Determine current attempts from the question_attempts table (canonical source)
+      try {
+        const attemptsQuery = `
+          SELECT COUNT(*) as cnt
+          FROM question_attempts qa
+          JOIN questions q ON qa.question_id = q.id
+          LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+          WHERE qa.user_id = $1 AND qc.category_id = $2
+        `;
+        const attemptsResult = await poolOrClient.query(attemptsQuery, [userId, categoryId]);
+        currentAttempts = parseInt(attemptsResult.rows[0]?.cnt ?? '0', 10) || 0;
+      } catch (err) {
+        currentAttempts = 0;
+      }
+
+      // K-factor is calculated based on attempts (derived), not stored
+      currentKFactor = currentAttempts < 10 ? 32 : (currentAttempts < 30 ? 24 : 16);
+
+      // Derive a representative question/category rating and timesRated
+      let questionBaseRating = DEFAULT_ELO_RATING;
+      let questionTimesRated = 0;
+      try {
+        const catQuestionStatsQuery = `
+          SELECT AVG(q.elo_rating) AS avg_elo, COALESCE(SUM(q.times_answered), 0) AS times_rated
+          FROM questions q
+          JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+          WHERE qc.category_id = $1
+        `;
+        const catStats = await poolOrClient.query(catQuestionStatsQuery, [categoryId]);
+        if (catStats.rows.length > 0) {
+          questionBaseRating = Number(catStats.rows[0].avg_elo) || DEFAULT_ELO_RATING;
+          questionTimesRated = parseInt(catStats.rows[0].times_rated ?? '0', 10) || 0;
+        }
+      } catch (err) {
+        // fallback to defaults if query fails
+        questionBaseRating = DEFAULT_ELO_RATING;
+        questionTimesRated = 0;
+      }
+
+      const questionKFactor = ELOCalculator.calculateQuestionKFactor(questionTimesRated);
+
+      // Use the shared ELOCalculator to compute symmetric rating changes
+      const eloResult = ELOCalculator.performELOCalculation(
+        {
+          currentRating: currentElo,
+          kFactor: currentKFactor,
+          gamesPlayed: currentAttempts
+        },
+        {
+          currentRating: questionBaseRating,
+          kFactor: questionKFactor,
+          timesRated: questionTimesRated
+        },
+        isCorrect
+      );
+
+      newElo = Math.max(0, eloResult.playerNewRating);
+
+      // Update confidence level based on performance (small smoothing)
       if (isCorrect) {
         newConfidence = Math.min(1.0, currentConfidence + 0.05);
       } else {
@@ -582,7 +616,6 @@ class MicroRatingModel {
         UPDATE micro_ratings 
         SET 
           elo_rating = $1,
-          attempts = attempts + 1,
           confidence = $2,
           updated_at = NOW()
         WHERE user_id = $3 AND ${categoryColumn} = $4
@@ -593,7 +626,7 @@ class MicroRatingModel {
         categoryId,
         eloRatingBefore: currentElo,
         eloRatingAfter: newElo,
-        eloChange,
+        eloDelta: newElo - currentElo,
         isCorrect,
         confidenceBefore: currentConfidence,
         confidenceAfter: newConfidence,
@@ -617,8 +650,8 @@ class MicroRatingModel {
     
     try {
       await pool.query(`
-        INSERT INTO micro_ratings (user_id, ${categoryColumn}, elo_rating, attempts, k_factor, created_at, updated_at)
-        VALUES ($1, $2, $3, 0, 32, NOW(), NOW())
+        INSERT INTO micro_ratings (user_id, ${categoryColumn}, elo_rating, k_factor, created_at, updated_at)
+        VALUES ($1, $2, $3, 32, NOW(), NOW())
         ON CONFLICT (user_id, ${categoryColumn}) DO NOTHING
       `, [userId, categoryId, DEFAULT_ELO_RATING]);
     } catch (error) {
@@ -634,20 +667,12 @@ class MicroRatingModel {
       SELECT 
         COUNT(*) as total_categories,
         AVG(elo_rating) as avg_rating,
-        SUM(attempts) as total_attempts,
-        COALESCE(
-          (SELECT COUNT(*) FROM question_attempts qa 
-           WHERE qa.user_id = $1 AND qa.is_correct = true), 0
-        ) as total_correct,
-        CASE 
-          WHEN SUM(attempts) > 0 
-          THEN ROUND((
-            COALESCE(
-              (SELECT COUNT(*) FROM question_attempts qa 
-               WHERE qa.user_id = $1 AND qa.is_correct = true), 0
-            )::DECIMAL / SUM(attempts)
-          ) * 100, 2)
-          ELSE 0 
+        COALESCE((SELECT COUNT(*) FROM question_attempts qa WHERE qa.user_id = $1), 0) as total_attempts,
+        COALESCE((SELECT COUNT(*) FROM question_attempts qa WHERE qa.user_id = $1 AND qa.is_correct = true), 0) as total_correct,
+        CASE
+          WHEN COALESCE((SELECT COUNT(*) FROM question_attempts qa WHERE qa.user_id = $1), 0) > 0
+            THEN ROUND((COALESCE((SELECT COUNT(*) FROM question_attempts qa WHERE qa.user_id = $1 AND qa.is_correct = true), 0)::DECIMAL / COALESCE((SELECT COUNT(*) FROM question_attempts qa WHERE qa.user_id = $1), 0)) * 100, 2)
+          ELSE 0
         END as overall_success_rate,
         MAX(elo_rating) as highest_rating,
         MIN(elo_rating) as lowest_rating

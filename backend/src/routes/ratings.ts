@@ -72,7 +72,19 @@ router.get('/micro', authenticateToken, async (req: AuthenticatedRequest, res) =
     const userId = req.user!.id;
     const microRatings = await MicroRatingModel.getUserAllCategoryRatings(userId);
 
-    res.json(formatSuccessResponse('Micro ratings retrieved', microRatings));
+    const normalized = microRatings.map((r: any) => ({
+      category_id: r.category_id,
+      category_name: r.category_name ?? null,
+      elo_rating: r.elo_rating ?? 1200,
+      attempts_count: r.attempts_count ?? 0,
+      correct_count: r.correct_count ?? 0,
+      success_rate: typeof r.success_rate === 'number' ? r.success_rate : 0,
+      last_attempt_date: r.last_attempt_date ?? null,
+      updated_at: r.updated_at ?? null,
+      sub_category: r.sub_category ?? undefined
+    }));
+
+    res.json(formatSuccessResponse('Micro ratings retrieved', normalized));
   } catch (error: any) {
     console.error('Error fetching micro ratings:', error);
     res.status(500).json(formatErrorResponse('Failed to fetch micro ratings: ' + error.message));
@@ -206,7 +218,13 @@ router.get('/leaderboard/category/:categoryId', authenticateToken, async (req: A
 
     const leaderboard = topPerformers.map((row: any, index: number) => ({
       rank: index + 1,
-      ...row
+      username: row.username,
+      user_id: row.user_id,
+      elo_rating: row.elo_rating,
+      attempts_count: row.attempts_count ?? 0,
+      correct_count: row.correct_count ?? 0,
+      success_rate: typeof row.success_rate === 'number' ? row.success_rate : 0,
+      updated_at: row.updated_at ?? null
     }));
 
     return res.json(formatSuccessResponse('Category leaderboard retrieved', leaderboard));
@@ -267,11 +285,21 @@ router.get('/rank/category/:categoryId', authenticateToken, async (req: Authenti
     const query = `
       SELECT 
         COUNT(*) + 1 as rank,
-        (SELECT COUNT(*) FROM micro_ratings WHERE category_id = $2 AND attempts > 0) as total_players
+        (
+          SELECT COUNT(DISTINCT qa.user_id) FROM question_attempts qa
+          JOIN questions q ON qa.question_id = q.id
+          LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+          WHERE qc.category_id = $2
+        ) as total_players
       FROM micro_ratings mr
       WHERE mr.elo_rating > $1
       AND mr.category_id = $2
-      AND mr.attempts > 0
+      AND EXISTS (
+        SELECT 1 FROM question_attempts qa
+        JOIN questions q ON qa.question_id = q.id
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        WHERE qa.user_id = mr.user_id AND qc.category_id = $2
+      )
     `;
 
     const result = await pool.query(query, [userRating, categoryId]);

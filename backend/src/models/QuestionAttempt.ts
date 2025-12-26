@@ -129,6 +129,12 @@ class QuestionAttemptModel {
         isCorrect
       );
       
+      // Calculate player confidence based on games played and performance
+      const playerConfidence = ELOCalculator.calculatePlayerConfidence(
+        playerGamesPlayed,
+        eloResult.expectedScore
+      );
+      
       console.log('🧮 ELO Calculation Results:', {
         playerRatingBefore,
         playerRatingAfter: eloResult.playerNewRating,
@@ -137,7 +143,8 @@ class QuestionAttemptModel {
         questionRatingAfter: eloResult.questionNewRating,
         questionEloChange: eloResult.questionEloChange,
         expectedScore: eloResult.expectedScore,
-        actualScore: eloResult.actualScore
+        actualScore: eloResult.actualScore,
+        playerConfidence
       });
       
       // Insert ELO-calculated attempt record
@@ -183,8 +190,8 @@ class QuestionAttemptModel {
                 ELSE -1
               END
           END,
-          best_rating = GREATEST(player_ratings.best_rating, $2),
-          confidence_level = ROUND($8::numeric, 2),
+          best_rating = GREATEST(player_ratings.best_rating, $8),
+          confidence_level = ROUND($9::numeric, 2),
           updated_at = NOW()
       `, [
         userId, 
@@ -194,7 +201,8 @@ class QuestionAttemptModel {
         isCorrect ? 1 : 0,  // wins increment
         isCorrect ? 0 : 1,  // losses increment
         0,  // streak parameter (calculated in UPDATE)
-        eloResult.confidence || 0.5  // confidence level
+        eloResult.playerNewRating,  // best_rating
+        playerConfidence  // confidence level
       ]);
       
       // Update question with ELO results

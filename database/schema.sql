@@ -23,6 +23,7 @@ CREATE TYPE public.user_role AS ENUM (
 -- ============================================================================
 
 -- Calculate dynamic K-factor for players based on games played
+DROP FUNCTION IF EXISTS public.calculate_player_k_factor(integer);
 CREATE FUNCTION public.calculate_player_k_factor(games_played integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -38,6 +39,7 @@ END;
 $$;
 
 -- Calculate dynamic K-factor for questions based on times rated
+DROP FUNCTION IF EXISTS public.calculate_question_k_factor(integer);
 CREATE FUNCTION public.calculate_question_k_factor(times_rated integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -53,6 +55,7 @@ END;
 $$;
 
 -- Calculate question reliability based on rating history
+DROP FUNCTION IF EXISTS public.calculate_question_reliability(integer);
 CREATE FUNCTION public.calculate_question_reliability(times_rated integer) 
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
@@ -65,7 +68,20 @@ $$;
 -- TRIGGER FUNCTIONS
 -- ============================================================================
 
--- Update micro_ratings timestamp
+-- Drop triggers before dropping functions (they depend on functions)
+DROP TRIGGER IF EXISTS update_micro_ratings_timestamp ON public.micro_ratings;
+DROP TRIGGER IF EXISTS trigger_update_player_k_factor ON public.player_ratings;
+DROP TRIGGER IF EXISTS trigger_update_question_k_factor ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_reliability ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_stats ON public.questions;
+DROP TRIGGER IF EXISTS trigger_update_question_types_updated_at ON public.question_types;
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
+DROP TRIGGER IF EXISTS update_player_ratings_updated_at ON public.player_ratings;
+DROP TRIGGER IF EXISTS update_categories_updated_at ON public.categories;
+DROP TRIGGER IF EXISTS update_questions_updated_at ON public.questions;
+
+-- Now drop and recreate functions
+DROP FUNCTION IF EXISTS public.update_micro_ratings_timestamp();
 CREATE FUNCTION public.update_micro_ratings_timestamp() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -76,6 +92,7 @@ END;
 $$;
 
 -- Update player K-factor on rating changes
+DROP FUNCTION IF EXISTS public.update_player_k_factor();
 CREATE FUNCTION public.update_player_k_factor() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -87,6 +104,7 @@ END;
 $$;
 
 -- Update question K-factor on rating changes
+DROP FUNCTION IF EXISTS public.update_question_k_factor();
 CREATE FUNCTION public.update_question_k_factor() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -98,6 +116,7 @@ END;
 $$;
 
 -- Update question reliability on rating changes
+DROP FUNCTION IF EXISTS public.update_question_reliability();
 CREATE FUNCTION public.update_question_reliability() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -109,6 +128,7 @@ END;
 $$;
 
 -- Update question stats (K-factor and reliability)
+DROP FUNCTION IF EXISTS public.update_question_stats();
 CREATE FUNCTION public.update_question_stats() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -121,6 +141,7 @@ END;
 $$;
 
 -- Update question_types timestamp
+DROP FUNCTION IF EXISTS public.update_question_types_updated_at();
 CREATE FUNCTION public.update_question_types_updated_at() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -131,6 +152,7 @@ END;
 $$;
 
 -- Generic function to update updated_at column
+DROP FUNCTION IF EXISTS public.update_updated_at_column();
 CREATE FUNCTION public.update_updated_at_column() 
 RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -376,7 +398,7 @@ COMMENT ON TABLE public.admin_activity_log IS 'Audit trail for admin actions';
 -- SEQUENCES
 -- ============================================================================
 
-CREATE SEQUENCE public.admin_activity_log_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.admin_activity_log_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -386,7 +408,7 @@ CREATE SEQUENCE public.admin_activity_log_id_seq
 
 ALTER SEQUENCE public.admin_activity_log_id_seq OWNED BY public.admin_activity_log.id;
 
-CREATE SEQUENCE public.micro_ratings_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.micro_ratings_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -396,7 +418,7 @@ CREATE SEQUENCE public.micro_ratings_id_seq
 
 ALTER SEQUENCE public.micro_ratings_id_seq OWNED BY public.micro_ratings.id;
 
-CREATE SEQUENCE public.player_ratings_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.player_ratings_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -406,7 +428,7 @@ CREATE SEQUENCE public.player_ratings_id_seq
 
 ALTER SEQUENCE public.player_ratings_id_seq OWNED BY public.player_ratings.id;
 
-CREATE SEQUENCE public.question_attempts_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.question_attempts_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -416,7 +438,7 @@ CREATE SEQUENCE public.question_attempts_id_seq
 
 ALTER SEQUENCE public.question_attempts_id_seq OWNED BY public.question_attempts.id;
 
-CREATE SEQUENCE public.question_types_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.question_types_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -426,7 +448,7 @@ CREATE SEQUENCE public.question_types_id_seq
 
 ALTER SEQUENCE public.question_types_id_seq OWNED BY public.categories.id;
 
-CREATE SEQUENCE public.question_categories_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.question_categories_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -436,7 +458,7 @@ CREATE SEQUENCE public.question_categories_id_seq
 
 ALTER SEQUENCE public.question_categories_id_seq OWNED BY public.question_categories.id;
 
-CREATE SEQUENCE public.questions_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.questions_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -446,7 +468,7 @@ CREATE SEQUENCE public.questions_id_seq
 
 ALTER SEQUENCE public.questions_id_seq OWNED BY public.questions.id;
 
-CREATE SEQUENCE public.quiz_sessions_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.quiz_sessions_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -456,7 +478,7 @@ CREATE SEQUENCE public.quiz_sessions_id_seq
 
 ALTER SEQUENCE public.quiz_sessions_id_seq OWNED BY public.quiz_sessions.id;
 
-CREATE SEQUENCE public.users_id_seq
+CREATE SEQUENCE IF NOT EXISTS public.users_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
