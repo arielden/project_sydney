@@ -2,9 +2,37 @@
 
 This folder contains comprehensive test cases for the Sidney Quiz Application.
 
+## Important: Test Setup Required
+
+These test files are **specifications** that require Jest to be installed and configured. The TypeScript files reference Jest globals (`describe`, `it`, `expect`) which will be available once Jest is set up.
+
+### Initial Setup
+
+1. **Install Jest and dependencies:**
+   ```bash
+   bash scripts/setup-jest.sh
+   ```
+   Or manually:
+   ```bash
+   npm install --save-dev jest @types/jest ts-jest typescript
+   ```
+
+2. **Update package.json scripts** (add these to your `scripts` section):
+   ```json
+   {
+     "scripts": {
+       "test": "jest",
+       "test:watch": "jest --watch",
+       "test:coverage": "jest --coverage",
+       "test:unit": "jest tests/unit",
+       "test:integration": "jest tests/integration"
+     }
+   }
+   ```
+
 ## Test Structure
 
-```
+```                                          
 tests/
 ├── unit/
 │   ├── eloCalculator.test.ts      # ELO rating calculation tests
@@ -41,6 +69,11 @@ npm test
 ### Watch Mode
 ```bash
 npm run test:watch
+```
+
+### With Coverage
+```bash
+npm run test:coverage
 ```
 
 ## Test Categories

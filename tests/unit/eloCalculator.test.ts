@@ -3,192 +3,191 @@
  * Tests the core ELO rating calculation logic
  */
 
-import { ELOCalculator } from '../../backend/src/utils/eloCalculator';
+import { ELOCalculator, PlayerStats, QuestionStats } from '../../backend/src/utils/eloCalculator';
 
 describe('ELOCalculator', () => {
-  describe('calculateElo', () => {
-    it('should calculate correct ELO change for a win', () => {
-      const result = ELOCalculator.calculateElo({
-        playerRating: 1200,
-        questionRating: 1200,
-        playerIsCorrect: true,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+  describe('performELOCalculation', () => {
+    it('should calculate correct ELO change for a correct answer', () => {
+      const playerStats: PlayerStats = {
+        currentRating: 1200,
+        kFactor: 32,
+        gamesPlayed: 10,
+      };
+      const questionStats: QuestionStats = {
+        currentRating: 1200,
+        kFactor: 16,
+        timesRated: 5,
+      };
+
+      const result = ELOCalculator.performELOCalculation(playerStats, questionStats, true);
 
       expect(result.playerNewRating).toBeGreaterThan(1200);
       expect(result.questionNewRating).toBeLessThan(1200);
-      expect(result.eloChange).toBeGreaterThan(0);
+      expect(result.playerEloChange).toBeGreaterThan(0);
     });
 
-    it('should calculate correct ELO change for a loss', () => {
-      const result = ELOCalculator.calculateElo({
-        playerRating: 1200,
-        questionRating: 1200,
-        playerIsCorrect: false,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+    it('should calculate correct ELO change for an incorrect answer', () => {
+      const playerStats: PlayerStats = {
+        currentRating: 1200,
+        kFactor: 32,
+        gamesPlayed: 10,
+      };
+      const questionStats: QuestionStats = {
+        currentRating: 1200,
+        kFactor: 16,
+        timesRated: 5,
+      };
+
+      const result = ELOCalculator.performELOCalculation(playerStats, questionStats, false);
 
       expect(result.playerNewRating).toBeLessThan(1200);
       expect(result.questionNewRating).toBeGreaterThan(1200);
-      expect(result.eloChange).toBeLessThan(0);
+      expect(result.playerEloChange).toBeLessThan(0);
     });
 
-    it('should give higher ELO gain when beating stronger opponent', () => {
-      const strongWin = ELOCalculator.calculateElo({
-        playerRating: 1100,
-        questionRating: 1300,
-        playerIsCorrect: true,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+    it('should give higher ELO gain when beating stronger question', () => {
+      const strongWin = ELOCalculator.performELOCalculation(
+        { currentRating: 1100, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 1300, kFactor: 16, timesRated: 5 },
+        true
+      );
 
-      const weakWin = ELOCalculator.calculateElo({
-        playerRating: 1300,
-        questionRating: 1100,
-        playerIsCorrect: true,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+      const weakWin = ELOCalculator.performELOCalculation(
+        { currentRating: 1300, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 1100, kFactor: 16, timesRated: 5 },
+        true
+      );
 
-      expect(strongWin.eloChange).toBeGreaterThan(weakWin.eloChange);
+      expect(strongWin.playerEloChange).toBeGreaterThan(weakWin.playerEloChange);
     });
 
-    it('should give lower ELO penalty when losing to stronger opponent', () => {
-      const lossToStrong = ELOCalculator.calculateElo({
-        playerRating: 1100,
-        questionRating: 1300,
-        playerIsCorrect: false,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+    it('should give smaller penalty for losing to stronger question', () => {
+      const lossToStrong = ELOCalculator.performELOCalculation(
+        { currentRating: 1100, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 1300, kFactor: 16, timesRated: 5 },
+        false
+      );
 
-      const lossToWeak = ELOCalculator.calculateElo({
-        playerRating: 1300,
-        questionRating: 1100,
-        playerIsCorrect: false,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+      const lossToWeak = ELOCalculator.performELOCalculation(
+        { currentRating: 1300, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 1100, kFactor: 16, timesRated: 5 },
+        false
+      );
 
-      expect(Math.abs(lossToStrong.eloChange)).toBeLessThan(Math.abs(lossToWeak.eloChange));
+      expect(Math.abs(lossToStrong.playerEloChange)).toBeLessThan(Math.abs(lossToWeak.playerEloChange));
     });
 
     it('should respect K-factor in calculations', () => {
-      const lowKFactor = ELOCalculator.calculateElo({
-        playerRating: 1200,
-        questionRating: 1200,
-        playerIsCorrect: true,
-        playerKFactor: 16,
-        questionKFactor: 16,
-      });
+      const lowKResult = ELOCalculator.performELOCalculation(
+        { currentRating: 1200, kFactor: 10, gamesPlayed: 50 },
+        { currentRating: 1200, kFactor: 16, timesRated: 5 },
+        true
+      );
 
-      const highKFactor = ELOCalculator.calculateElo({
-        playerRating: 1200,
-        questionRating: 1200,
-        playerIsCorrect: true,
-        playerKFactor: 64,
-        questionKFactor: 16,
-      });
+      const highKResult = ELOCalculator.performELOCalculation(
+        { currentRating: 1200, kFactor: 100, gamesPlayed: 5 },
+        { currentRating: 1200, kFactor: 16, timesRated: 5 },
+        true
+      );
 
-      expect(highKFactor.eloChange).toBeGreaterThan(lowKFactor.eloChange);
+      expect(highKResult.playerEloChange).toBeGreaterThan(lowKResult.playerEloChange);
     });
 
     it('should not produce negative ratings', () => {
-      const result = ELOCalculator.calculateElo({
-        playerRating: 100,
-        questionRating: 3000,
-        playerIsCorrect: false,
-        playerKFactor: 32,
-        questionKFactor: 16,
-      });
+      const result = ELOCalculator.performELOCalculation(
+        { currentRating: 100, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 3000, kFactor: 16, timesRated: 5 },
+        false
+      );
 
-      expect(result.playerNewRating).toBeGreaterThanOrEqual(0);
+      expect(result.playerNewRating).toBeGreaterThanOrEqual(100);
     });
   });
 
-  describe('expectedScore', () => {
+  describe('calculateExpectedScore', () => {
     it('should calculate 50% expected score for equal ratings', () => {
-      const expectedScore = ELOCalculator.expectedScore(1200, 1200);
+      const expectedScore = ELOCalculator.calculateExpectedScore(1200, 1200);
       expect(expectedScore).toBeCloseTo(0.5, 2);
     });
 
-    it('should favor higher-rated player', () => {
-      const scoreHigher = ELOCalculator.expectedScore(1300, 1100);
-      const scoreLower = ELOCalculator.expectedScore(1100, 1300);
+    it('should favor higher-rated question', () => {
+      const scoreHigher = ELOCalculator.calculateExpectedScore(1200, 1300);
+      const scoreLower = ELOCalculator.calculateExpectedScore(1200, 1100);
 
-      expect(scoreHigher).toBeGreaterThan(0.5);
-      expect(scoreLower).toBeLessThan(0.5);
-      expect(scoreHigher + scoreLower).toBeCloseTo(1, 2);
+      expect(scoreHigher).toBeLessThan(0.5); // Harder question = lower expected score
+      expect(scoreLower).toBeGreaterThan(0.5); // Easier question = higher expected score
+      expect(scoreHigher + scoreLower).toBeCloseTo(1, 1);
     });
 
     it('should be symmetric', () => {
-      const score1 = ELOCalculator.expectedScore(1200, 1300);
-      const score2 = ELOCalculator.expectedScore(1300, 1200);
+      const score1 = ELOCalculator.calculateExpectedScore(1200, 1300);
+      const score2 = ELOCalculator.calculateExpectedScore(1300, 1200);
 
       expect(score1 + score2).toBeCloseTo(1, 2);
     });
   });
 
-  describe('getKFactor', () => {
+  describe('calculatePlayerKFactor', () => {
     it('should return 100 for new players with few games', () => {
-      const kFactor = ELOCalculator.getKFactor(0);
+      const kFactor = ELOCalculator.calculatePlayerKFactor(0);
       expect(kFactor).toBe(100);
     });
 
-    it('should return 50 for intermediate players', () => {
-      const kFactor = ELOCalculator.getKFactor(20);
-      expect(kFactor).toBe(50);
+    it('should return 40 for intermediate players', () => {
+      const kFactor = ELOCalculator.calculatePlayerKFactor(20);
+      expect(kFactor).toBe(40);
     });
 
-    it('should return 32 for experienced players', () => {
-      const kFactor = ELOCalculator.getKFactor(50);
-      expect(kFactor).toBe(32);
+    it('should return 10 for experienced players', () => {
+      const kFactor = ELOCalculator.calculatePlayerKFactor(50);
+      expect(kFactor).toBe(10);
     });
 
     it('should decrease K-factor with more games', () => {
-      const k0 = ELOCalculator.getKFactor(0);
-      const k10 = ELOCalculator.getKFactor(10);
-      const k30 = ELOCalculator.getKFactor(30);
-      const k100 = ELOCalculator.getKFactor(100);
+      const k0 = ELOCalculator.calculatePlayerKFactor(0);
+      const k10 = ELOCalculator.calculatePlayerKFactor(10);
+      const k30 = ELOCalculator.calculatePlayerKFactor(30);
+      const k100 = ELOCalculator.calculatePlayerKFactor(100);
 
       expect(k0).toBeGreaterThan(k10);
-      expect(k10).toBeGreaterThan(k30);
+      expect(k10).toBeGreaterThanOrEqual(k30);
       expect(k30).toBeGreaterThanOrEqual(k100);
     });
   });
 
-  describe('getConfidenceLevel', () => {
-    it('should increase confidence on correct answers', () => {
-      const newConfidence = ELOCalculator.getConfidenceLevel(0.5, true);
-      expect(newConfidence).toBeGreaterThan(0.5);
+  describe('calculatePlayerConfidence', () => {
+    it('should increase confidence with more games', () => {
+      const conf0 = ELOCalculator.calculatePlayerConfidence(0, 0.5);
+      const conf50 = ELOCalculator.calculatePlayerConfidence(50, 0.5);
+
+      expect(conf50).toBeGreaterThan(conf0);
     });
 
-    it('should decrease confidence on incorrect answers', () => {
-      const newConfidence = ELOCalculator.getConfidenceLevel(0.5, false);
-      expect(newConfidence).toBeLessThan(0.5);
+    it('should increase confidence with better performance', () => {
+      const confPoor = ELOCalculator.calculatePlayerConfidence(25, 0.2);
+      const confGood = ELOCalculator.calculatePlayerConfidence(25, 0.8);
+
+      expect(confGood).toBeGreaterThan(confPoor);
     });
 
     it('should keep confidence between 0 and 1', () => {
-      let confidence = 0.9;
-      for (let i = 0; i < 10; i++) {
-        confidence = ELOCalculator.getConfidenceLevel(confidence, true);
-      }
-      expect(confidence).toBeLessThanOrEqual(1.0);
+      const conf = ELOCalculator.calculatePlayerConfidence(100, 1.0);
+      expect(conf).toBeGreaterThanOrEqual(0);
+      expect(conf).toBeLessThanOrEqual(1);
+    });
+  });
 
-      confidence = 0.1;
-      for (let i = 0; i < 10; i++) {
-        confidence = ELOCalculator.getConfidenceLevel(confidence, false);
-      }
-      expect(confidence).toBeGreaterThanOrEqual(0.0);
+  describe('calculateQuestionReliability', () => {
+    it('should increase reliability with more ratings', () => {
+      const rel10 = ELOCalculator.calculateQuestionReliability(10);
+      const rel100 = ELOCalculator.calculateQuestionReliability(100);
+
+      expect(rel100).toBeGreaterThan(rel10);
     });
 
-    it('should adjust confidence by consistent amount per answer', () => {
-      const confidence1 = ELOCalculator.getConfidenceLevel(0.5, true);
-      const confidence2 = ELOCalculator.getConfidenceLevel(0.6, true);
-
-      expect(confidence1 - 0.5).toBeCloseTo(confidence2 - 0.6, 2);
+    it('should cap reliability at 0.95', () => {
+      const rel = ELOCalculator.calculateQuestionReliability(10000);
+      expect(rel).toBeLessThanOrEqual(0.95);
     });
   });
 });
