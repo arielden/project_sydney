@@ -158,17 +158,44 @@ class QuestionAttemptModel {
         eloResult.expectedScore, eloResult.playerEloChange
       ]);
       
-      // Update player rating in player_ratings table
+      // Update player rating in player_ratings table with all fields
       await client.query(`
-        INSERT INTO player_ratings (user_id, overall_elo, games_played, k_factor, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        INSERT INTO player_ratings (
+          user_id, overall_elo, games_played, k_factor, 
+          wins, losses, streak, best_rating, confidence_level, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
         ON CONFLICT (user_id) 
         DO UPDATE SET 
           overall_elo = $2,
           games_played = player_ratings.games_played + 1,
           k_factor = $4,
+          wins = player_ratings.wins + $5,
+          losses = player_ratings.losses + $6,
+          streak = CASE 
+            WHEN $5 = 1 THEN 
+              CASE 
+                WHEN player_ratings.streak >= 0 THEN player_ratings.streak + 1
+                ELSE 1
+              END
+            ELSE
+              CASE 
+                WHEN player_ratings.streak <= 0 THEN player_ratings.streak - 1
+                ELSE -1
+              END
+          END,
+          best_rating = GREATEST(player_ratings.best_rating, $2),
+          confidence_level = ROUND($8::numeric, 2),
           updated_at = NOW()
-      `, [userId, eloResult.playerNewRating, playerGamesPlayed + 1, eloResult.playerNewKFactor]);
+      `, [
+        userId, 
+        eloResult.playerNewRating, 
+        playerGamesPlayed + 1, 
+        eloResult.playerNewKFactor,
+        isCorrect ? 1 : 0,  // wins increment
+        isCorrect ? 0 : 1,  // losses increment
+        0,  // streak parameter (calculated in UPDATE)
+        eloResult.confidence || 0.5  // confidence level
+      ]);
       
       // Update question with ELO results
       await client.query(`
@@ -184,16 +211,37 @@ class QuestionAttemptModel {
       await client.query('COMMIT');
       console.log('✅ Attempt recorded successfully');
       
-      // Update category-specific micro ratings (async, don't block main response)
-      if (question.category_id) {
-        try {
-          console.log('🎯 Updating micro rating for category:', question.category_id);
-          await MicroRatingModel.recordAttempt(userId, question.category_id, isCorrect);
-          console.log('✅ Micro rating updated successfully');
-        } catch (microError) {
-          console.error('⚠️ Failed to update micro rating:', microError instanceof Error ? microError.message : 'Unknown error');
-          // Don't throw error, just log it - micro rating is supplementary
+      // Update micro ratings for ALL categories linked to this question (not just primary)
+      try {
+        const categoriesQuery = `
+          SELECT DISTINCT qc.category_id
+          FROM question_categories qc
+          WHERE qc.question_id = $1
+        `;
+        const categoriesResult = await client.query(categoriesQuery, [questionId]);
+        
+        if (categoriesResult.rows.length > 0) {
+          console.log(`🎯 Updating micro ratings for ${categoriesResult.rows.length} categories`);
+          
+          for (const row of categoriesResult.rows) {
+            const categoryId = row.category_id;
+            try {
+              console.log('📊 Updating micro rating for category:', categoryId);
+              await MicroRatingModel.recordAttempt(userId, categoryId, isCorrect);
+              console.log('✅ Micro rating updated for category:', categoryId);
+            } catch (microError) {
+              console.error(`⚠️ Failed to update micro rating for category ${categoryId}:`, 
+                microError instanceof Error ? microError.message : 'Unknown error');
+              // Don't throw error, just log it - micro rating is supplementary
+            }
+          }
+        } else {
+          console.log('ℹ️ No categories linked to question, micro ratings not updated');
         }
+      } catch (categoriesError) {
+        console.error('⚠️ Failed to fetch categories for question:', 
+          categoriesError instanceof Error ? categoriesError.message : 'Unknown error');
+        // Don't throw error, just log it
       }
       
       return attemptResult.rows[0];

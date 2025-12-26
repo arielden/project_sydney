@@ -300,7 +300,7 @@ class MicroRatingModel {
     const { exists: hasSubCategory } = await this.getSubCategoryMetadata();
     const categorySelector = `mr.${categoryColumn}`;
 
-    // Query with junction table support (question_categories)
+    // Simplified query - get stats directly from question_attempts with proper category linking
     const query = `
       WITH category_stats AS (
         SELECT 
@@ -310,8 +310,8 @@ class MicroRatingModel {
           MAX(qa.answered_at) AS last_attempt_date
         FROM question_attempts qa
         JOIN questions q ON qa.question_id = q.id
-        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
-        WHERE qa.user_id = $1 AND qc.category_id IS NOT NULL
+        JOIN question_categories qc ON q.id = qc.question_id
+        WHERE qa.user_id = $1
         GROUP BY qc.category_id
       )
       SELECT 
@@ -323,7 +323,7 @@ class MicroRatingModel {
         COALESCE(cs.correct_count, 0) AS correct_count,
         CASE 
           WHEN mr.attempts > 0 
-          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / mr.attempts), 4)
+          THEN ROUND((COALESCE(cs.correct_count, 0)::DECIMAL / COALESCE(cs.total_attempts, mr.attempts)), 4)
           ELSE 0 
         END AS success_rate,
         cs.last_attempt_date,
@@ -527,19 +527,102 @@ class MicroRatingModel {
     const categoryColumn = await this.getCategoryColumn();
     
     try {
-      // Update attempt count and correct count if applicable
-      const updateQuery = `
-        UPDATE micro_ratings 
-        SET 
-          attempts = attempts + 1,
-          updated_at = NOW()
+      // Get current micro rating stats for this user and category
+      const currentRatingQuery = `
+        SELECT elo_rating, attempts, k_factor, confidence
+        FROM micro_ratings 
         WHERE user_id = $1 AND ${categoryColumn} = $2
       `;
       
-      await poolOrClient.query(updateQuery, [userId, categoryId]);
+      const currentRatingResult = await poolOrClient.query(currentRatingQuery, [userId, categoryId]);
+      
+      let newElo = DEFAULT_ELO_RATING;
+      let newConfidence = 0.5;
+      let currentElo = DEFAULT_ELO_RATING;
+      let currentAttempts = 0;
+      let currentKFactor = 32;
+      let currentConfidence = 0.5;
+      
+      if (currentRatingResult.rows.length === 0) {
+        // If micro rating doesn't exist, initialize it first
+        await this.initializeUserCategoryRating(userId, categoryId);
+        // Fall through to apply ELO calculation for the first attempt
+      } else {
+        const currentRating = currentRatingResult.rows[0];
+        currentElo = currentRating.elo_rating || DEFAULT_ELO_RATING;
+        currentAttempts = currentRating.attempts || 0;
+        currentKFactor = currentRating.k_factor || 32;
+        currentConfidence = currentRating.confidence || 0.5;
+      }
+      
+      // Calculate ELO change using the same formula as questions/players
+      // We treat the category itself as if it has a rating (using a default of 1200 for comparison)
+      const categoryBaseRating = 1200; // Neutral rating for category
+      
+      // Calculate expected probability of being correct
+      const expectedProbability = 1 / (1 + Math.pow(10, (categoryBaseRating - currentElo) / 400));
+      
+      // Calculate actual score (1 if correct, 0 if incorrect)
+      const actualScore = isCorrect ? 1 : 0;
+      
+      // Calculate ELO change
+      const eloChange = Math.round(currentKFactor * (actualScore - expectedProbability));
+      newElo = Math.max(0, currentElo + eloChange); // Prevent negative ratings
+      
+      // Update confidence level based on performance
+      // If correct, increase confidence; if incorrect, decrease it
+      if (isCorrect) {
+        newConfidence = Math.min(1.0, currentConfidence + 0.05);
+      } else {
+        newConfidence = Math.max(0.0, currentConfidence - 0.05);
+      }
+      
+      // Update micro rating with new ELO, attempt count, confidence, and timestamp
+      await poolOrClient.query(`
+        UPDATE micro_ratings 
+        SET 
+          elo_rating = $1,
+          attempts = attempts + 1,
+          confidence = $2,
+          updated_at = NOW()
+        WHERE user_id = $3 AND ${categoryColumn} = $4
+      `, [newElo, newConfidence, userId, categoryId]);
+      
+      console.log('📊 Micro rating updated:', {
+        userId,
+        categoryId,
+        eloRatingBefore: currentElo,
+        eloRatingAfter: newElo,
+        eloChange,
+        isCorrect,
+        confidenceBefore: currentConfidence,
+        confidenceAfter: newConfidence,
+        newAttemptCount: currentAttempts + 1
+      });
+      
     } catch (error) {
       console.error('Error recording attempt for category:', error);
       throw new Error('Failed to record category attempt');
+    }
+  }
+
+  /**
+   * Initialize a specific category rating for a user
+   */
+  private static async initializeUserCategoryRating(
+    userId: string,
+    categoryId: string
+  ): Promise<void> {
+    const categoryColumn = await this.getCategoryColumn();
+    
+    try {
+      await pool.query(`
+        INSERT INTO micro_ratings (user_id, ${categoryColumn}, elo_rating, attempts, k_factor, created_at, updated_at)
+        VALUES ($1, $2, $3, 0, 32, NOW(), NOW())
+        ON CONFLICT (user_id, ${categoryColumn}) DO NOTHING
+      `, [userId, categoryId, DEFAULT_ELO_RATING]);
+    } catch (error) {
+      console.error('Error initializing category rating:', error);
     }
   }
 
