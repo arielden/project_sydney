@@ -18,13 +18,13 @@ describe('MicroRatings', () => {
   describe('recordAttempt', () => {
     it('should create initial rating with default values for new category', async () => {
       // This would test that a new micro_rating is created with:
-      // - elo_rating = 1200
+      // - elo_rating = 500
       // - confidence = 0.5
       // - attempts = 1
       // - k_factor = 32
 
       const expected = {
-        elo_rating: 1200,
+        elo_rating: 500,
         confidence: 0.5,
         attempts: 1,
         k_factor: 32,
@@ -36,19 +36,19 @@ describe('MicroRatings', () => {
     });
 
     it('should increase ELO on correct answer', async () => {
-      // Start with default rating (1200)
+      // Start with default rating (500)
       // Answer correctly
       // ELO should increase
 
       // Expected calculation:
       // K = 32
-      // Expected = 1 / (1 + 10^(1200-1200)/400) = 0.5
+      // Expected = 1 / (1 + 10^(500-500)/400) = 0.5
       // Change = 32 * (1 - 0.5) = 16
-      // New ELO = 1200 + 16 = 1216
+      // New ELO = 500 + 16 = 516
 
       const expected = {
-        eloRatingBefore: 1200,
-        eloRatingAfter: 1216,
+        eloRatingBefore: 500,
+        eloRatingAfter: 516,
         eloChange: 16,
       };
 
@@ -58,17 +58,17 @@ describe('MicroRatings', () => {
     });
 
     it('should decrease ELO on incorrect answer', async () => {
-      // Start with rating at 1200
+      // Start with rating at 500
       // Answer incorrectly
       // ELO should decrease
 
       // Expected calculation:
       // Change = 32 * (0 - 0.5) = -16
-      // New ELO = 1200 - 16 = 1184
+      // New ELO = 500 - 16 = 484
 
       const expected = {
-        eloRatingBefore: 1200,
-        eloRatingAfter: 1184,
+        eloRatingBefore: 500,
+        eloRatingAfter: 484,
         eloChange: -16,
       };
 
@@ -133,7 +133,7 @@ describe('MicroRatings', () => {
       const expected = {
         user_id: userId,
         category_id: categoryId,
-        elo_rating: 1200,
+        elo_rating: 500,
         confidence: 0.5,
         attempts: 0,
         k_factor: 32,
@@ -223,7 +223,7 @@ describe('MicroRatings', () => {
       const expected = {
         user_id: userId,
         category_id: categoryId,
-        elo_rating: 1200,
+        elo_rating: 500,
         confidence: 0.5,
         attempts: 5,
       };

@@ -19,8 +19,8 @@ describe('PlayerRatings', () => {
       };
 
       // Expected assertion:
-      // await PlayerRatingModel.recordAttempt(userId, true, 1200, 32);
-      // await PlayerRatingModel.recordAttempt(userId, false, 1184, 32);
+      // await PlayerRatingModel.recordAttempt(userId, true, 500, 32);
+      // await PlayerRatingModel.recordAttempt(userId, false, 484, 32);
       // const result = await PlayerRatingModel.getPlayerRating(userId);
       // expect(result.games_played).toBe(2);
     });
@@ -35,7 +35,7 @@ describe('PlayerRatings', () => {
       };
 
       // Expected assertion:
-      // const result = await PlayerRatingModel.recordAttempt(userId, true, 1200, 32);
+      // const result = await PlayerRatingModel.recordAttempt(userId, true, 500, 32);
       // expect(result).toMatchObject(expected);
     });
 
@@ -49,20 +49,20 @@ describe('PlayerRatings', () => {
       };
 
       // Expected assertion:
-      // const result = await PlayerRatingModel.recordAttempt(userId, false, 1200, 32);
+      // const result = await PlayerRatingModel.recordAttempt(userId, false, 500, 32);
       // expect(result).toMatchObject(expected);
     });
 
     it('should update overall_elo', async () => {
-      // Starting ELO = 1200
-      // After correct answer (ELO +16): overall_elo = 1216
+      // Starting ELO = 500
+      // After correct answer (ELO +16): overall_elo = 516
 
       const expected = {
-        overall_elo: 1216,
+        overall_elo: 516,
       };
 
       // Expected assertion:
-      // const result = await PlayerRatingModel.recordAttempt(userId, true, 1216, 32);
+      // const result = await PlayerRatingModel.recordAttempt(userId, true, 516, 32);
       // expect(result).toMatchObject(expected);
     });
 
@@ -239,13 +239,13 @@ describe('PlayerRatings', () => {
     it('should create rating with default values', async () => {
       const expected = {
         user_id: userId,
-        overall_elo: 1200,
+        overall_elo: 500,
         games_played: 0,
         k_factor: 100,
         wins: 0,
         losses: 0,
         streak: 0,
-        best_rating: 1200,
+        best_rating: 500,
         confidence_level: 0.5,
       };
 

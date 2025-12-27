@@ -9,52 +9,52 @@ describe('ELOCalculator', () => {
   describe('performELOCalculation', () => {
     it('should calculate correct ELO change for a correct answer', () => {
       const playerStats: PlayerStats = {
-        currentRating: 1200,
+        currentRating: 500,
         kFactor: 32,
         gamesPlayed: 10,
       };
       const questionStats: QuestionStats = {
-        currentRating: 1200,
+        currentRating: 500,
         kFactor: 16,
         timesRated: 5,
       };
 
       const result = ELOCalculator.performELOCalculation(playerStats, questionStats, true);
 
-      expect(result.playerNewRating).toBeGreaterThan(1200);
-      expect(result.questionNewRating).toBeLessThan(1200);
+      expect(result.playerNewRating).toBeGreaterThan(500);
+      expect(result.questionNewRating).toBeLessThan(500);
       expect(result.playerEloChange).toBeGreaterThan(0);
     });
 
     it('should calculate correct ELO change for an incorrect answer', () => {
       const playerStats: PlayerStats = {
-        currentRating: 1200,
+        currentRating: 500,
         kFactor: 32,
         gamesPlayed: 10,
       };
       const questionStats: QuestionStats = {
-        currentRating: 1200,
+        currentRating: 500,
         kFactor: 16,
         timesRated: 5,
       };
 
       const result = ELOCalculator.performELOCalculation(playerStats, questionStats, false);
 
-      expect(result.playerNewRating).toBeLessThan(1200);
-      expect(result.questionNewRating).toBeGreaterThan(1200);
+      expect(result.playerNewRating).toBeLessThan(500);
+      expect(result.questionNewRating).toBeGreaterThan(500);
       expect(result.playerEloChange).toBeLessThan(0);
     });
 
     it('should give higher ELO gain when beating stronger question', () => {
       const strongWin = ELOCalculator.performELOCalculation(
-        { currentRating: 1100, kFactor: 32, gamesPlayed: 10 },
-        { currentRating: 1300, kFactor: 16, timesRated: 5 },
+        { currentRating: 400, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 600, kFactor: 16, timesRated: 5 },
         true
       );
 
       const weakWin = ELOCalculator.performELOCalculation(
-        { currentRating: 1300, kFactor: 32, gamesPlayed: 10 },
-        { currentRating: 1100, kFactor: 16, timesRated: 5 },
+        { currentRating: 600, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 400, kFactor: 16, timesRated: 5 },
         true
       );
 
@@ -63,14 +63,14 @@ describe('ELOCalculator', () => {
 
     it('should give smaller penalty for losing to stronger question', () => {
       const lossToStrong = ELOCalculator.performELOCalculation(
-        { currentRating: 1100, kFactor: 32, gamesPlayed: 10 },
-        { currentRating: 1300, kFactor: 16, timesRated: 5 },
+        { currentRating: 400, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 600, kFactor: 16, timesRated: 5 },
         false
       );
 
       const lossToWeak = ELOCalculator.performELOCalculation(
-        { currentRating: 1300, kFactor: 32, gamesPlayed: 10 },
-        { currentRating: 1100, kFactor: 16, timesRated: 5 },
+        { currentRating: 600, kFactor: 32, gamesPlayed: 10 },
+        { currentRating: 400, kFactor: 16, timesRated: 5 },
         false
       );
 
@@ -79,14 +79,14 @@ describe('ELOCalculator', () => {
 
     it('should respect K-factor in calculations', () => {
       const lowKResult = ELOCalculator.performELOCalculation(
-        { currentRating: 1200, kFactor: 10, gamesPlayed: 50 },
-        { currentRating: 1200, kFactor: 16, timesRated: 5 },
+        { currentRating: 500, kFactor: 10, gamesPlayed: 50 },
+        { currentRating: 500, kFactor: 16, timesRated: 5 },
         true
       );
 
       const highKResult = ELOCalculator.performELOCalculation(
-        { currentRating: 1200, kFactor: 100, gamesPlayed: 5 },
-        { currentRating: 1200, kFactor: 16, timesRated: 5 },
+        { currentRating: 500, kFactor: 100, gamesPlayed: 5 },
+        { currentRating: 500, kFactor: 16, timesRated: 5 },
         true
       );
 
@@ -106,13 +106,13 @@ describe('ELOCalculator', () => {
 
   describe('calculateExpectedScore', () => {
     it('should calculate 50% expected score for equal ratings', () => {
-      const expectedScore = ELOCalculator.calculateExpectedScore(1200, 1200);
+      const expectedScore = ELOCalculator.calculateExpectedScore(500, 500);
       expect(expectedScore).toBeCloseTo(0.5, 2);
     });
 
     it('should favor higher-rated question', () => {
-      const scoreHigher = ELOCalculator.calculateExpectedScore(1200, 1300);
-      const scoreLower = ELOCalculator.calculateExpectedScore(1200, 1100);
+      const scoreHigher = ELOCalculator.calculateExpectedScore(500, 600);
+      const scoreLower = ELOCalculator.calculateExpectedScore(500, 400);
 
       expect(scoreHigher).toBeLessThan(0.5); // Harder question = lower expected score
       expect(scoreLower).toBeGreaterThan(0.5); // Easier question = higher expected score
@@ -120,8 +120,8 @@ describe('ELOCalculator', () => {
     });
 
     it('should be symmetric', () => {
-      const score1 = ELOCalculator.calculateExpectedScore(1200, 1300);
-      const score2 = ELOCalculator.calculateExpectedScore(1300, 1200);
+      const score1 = ELOCalculator.calculateExpectedScore(500, 600);
+      const score2 = ELOCalculator.calculateExpectedScore(600, 500);
 
       expect(score1 + score2).toBeCloseTo(1, 2);
     });
@@ -133,25 +133,25 @@ describe('ELOCalculator', () => {
       expect(kFactor).toBe(100);
     });
 
-    it('should return 40 for intermediate players', () => {
-      const kFactor = ELOCalculator.calculatePlayerKFactor(20);
-      expect(kFactor).toBe(40);
+    it('should return interpolated K for intermediate players', () => {
+      const kFactor = ELOCalculator.calculatePlayerKFactor(300);
+      expect(kFactor).toBe(50);
     });
 
     it('should return 10 for experienced players', () => {
-      const kFactor = ELOCalculator.calculatePlayerKFactor(50);
+      const kFactor = ELOCalculator.calculatePlayerKFactor(1000);
       expect(kFactor).toBe(10);
     });
 
     it('should decrease K-factor with more games', () => {
       const k0 = ELOCalculator.calculatePlayerKFactor(0);
-      const k10 = ELOCalculator.calculatePlayerKFactor(10);
-      const k30 = ELOCalculator.calculatePlayerKFactor(30);
-      const k100 = ELOCalculator.calculatePlayerKFactor(100);
+      const k50 = ELOCalculator.calculatePlayerKFactor(50);
+      const k250 = ELOCalculator.calculatePlayerKFactor(250);
+      const k900 = ELOCalculator.calculatePlayerKFactor(900);
 
-      expect(k0).toBeGreaterThan(k10);
-      expect(k10).toBeGreaterThanOrEqual(k30);
-      expect(k30).toBeGreaterThanOrEqual(k100);
+      expect(k0).toBeGreaterThan(k50);
+      expect(k50).toBeGreaterThanOrEqual(k250);
+      expect(k250).toBeGreaterThanOrEqual(k900);
     });
   });
 

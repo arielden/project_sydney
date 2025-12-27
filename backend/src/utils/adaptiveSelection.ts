@@ -1,6 +1,7 @@
 import pool from '../config/database';
 import { ELOCalculator } from '../utils/eloCalculator';
 import MicroRatingModel from '../models/MicroRating';
+import { DEFAULT_ELO, MAX_ELO } from '../config/eloConstants';
 
 export interface AdaptiveQuestionOptions {
   userId: string;
@@ -52,7 +53,7 @@ class AdaptiveSelectionService {
         WHERE user_id = $1
       `;
       const userRatingResult = await pool.query(userRatingQuery, [userId]);
-      const userRating = userRatingResult.rows[0]?.overall_elo || 1200;
+      const userRating = userRatingResult.rows[0]?.overall_elo || DEFAULT_ELO;
 
       // Get user's micro ratings for all categories
       const microRatings = await MicroRatingModel.getUserAllCategoryRatings(userId);
@@ -87,9 +88,9 @@ class AdaptiveSelectionService {
       // Apply target difficulty if specified
       if (targetDifficulty !== 'auto') {
         const difficultyRanges = {
-          easy: [0, 1300],
-          medium: [1300, 1500],
-          hard: [1500, 2000]
+          easy: [0, 600],
+          medium: [600, 700],
+          hard: [700, 2000]
         };
         const range = difficultyRanges[targetDifficulty];
         whereConditions.push(`q.elo_rating BETWEEN $${paramIndex++} AND $${paramIndex++}`);
@@ -125,7 +126,7 @@ class AdaptiveSelectionService {
 
       // Score each candidate question
       const scoredQuestions: QuestionWithPrediction[] = candidates.map(question => {
-        const questionRating = question.elo_rating || 1200;
+        const questionRating = question.elo_rating || DEFAULT_ELO;
         
         // Get relevant micro rating for this category
         const microRating = microRatingMap[question.category_id] || userRating;
@@ -188,16 +189,16 @@ class AdaptiveSelectionService {
     try {
       const microRating = await MicroRatingModel.getUserCategoryRating(userId, categoryId);
       
-      if (microRating < 1300) {
+      if (microRating < 600) {
         return { level: 'easy', rating: microRating };
-      } else if (microRating < 1500) {
+      } else if (microRating < 700) {
         return { level: 'medium', rating: microRating };
       } else {
         return { level: 'hard', rating: microRating };
       }
     } catch (error) {
       console.error('Error getting recommended difficulty:', error);
-      return { level: 'medium', rating: 1200 };
+      return { level: 'medium', rating: DEFAULT_ELO };
     }
   }
 
@@ -225,7 +226,7 @@ class AdaptiveSelectionService {
           const availableQuestions = parseInt(questionCount.rows[0].count) || 0;
           
           // Calculate priority score (lower rating = higher priority)
-          const maxRating = 1800; // Assumed max rating
+          const maxRating = MAX_ELO; // Use configured MAX_ELO
           const normalizedRating = rating.elo_rating / maxRating;
           const improvementPotential = 1.0 - normalizedRating;
           

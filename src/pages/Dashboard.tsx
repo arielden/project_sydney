@@ -32,7 +32,7 @@ export default function Dashboard() {
     return microRatings.map((rating) => ({
       id: rating.category_id,
       name: rating.category_name,
-      rating: rating.elo_rating ?? 1200,
+      rating: rating.elo_rating ?? 500,
       attempts: rating.attempts_count ?? 0,
       correct: rating.correct_count ?? 0,
       successRate: rating.success_rate ?? null,
@@ -50,13 +50,13 @@ export default function Dashboard() {
   };
 
   const getRatingLevel = (rating: number) => {
-    if (rating < 1000) return ELO_RATING_LEVELS.beginner;
-    if (rating < 1300) return ELO_RATING_LEVELS.intermediate;
-    if (rating < 1600) return ELO_RATING_LEVELS.advanced;
+    if (rating < 400) return ELO_RATING_LEVELS.beginner;
+    if (rating < 600) return ELO_RATING_LEVELS.intermediate;
+    if (rating < 700) return ELO_RATING_LEVELS.advanced;
     return ELO_RATING_LEVELS.expert;
   };
 
-  const currentElo = overallRating?.overall_elo ?? 1200;
+  const currentElo = overallRating?.overall_elo ?? 500;
   const ratingLevel = getRatingLevel(currentElo);
   const questionsAnswered = overallRating?.times_played ?? 0;
 

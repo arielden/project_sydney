@@ -4,6 +4,7 @@ import MicroRatingModel from '../models/MicroRating';
 import QuestionAttemptModel from '../models/QuestionAttempt';
 import pool from '../config/database';
 import { formatErrorResponse, formatSuccessResponse } from '../utils/helpers';
+import { DEFAULT_ELO } from '../config/eloConstants';
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/overall', authenticateToken, async (req: AuthenticatedRequest, res)
         `INSERT INTO player_ratings (user_id, overall_elo, games_played)
          VALUES ($1, $2, $3)
          RETURNING overall_elo, games_played, k_factor, confidence_level, created_at, updated_at`,
-        [userId, 1200, 0]
+        [userId, DEFAULT_ELO, 0]
       );
 
       const rating = insertResult.rows[0];
@@ -75,7 +76,7 @@ router.get('/micro', authenticateToken, async (req: AuthenticatedRequest, res) =
     const normalized = microRatings.map((r: any) => ({
       category_id: r.category_id,
       category_name: r.category_name ?? null,
-      elo_rating: r.elo_rating ?? 1200,
+      elo_rating: r.elo_rating ?? DEFAULT_ELO,
       attempts_count: r.attempts_count ?? 0,
       correct_count: r.correct_count ?? 0,
       success_rate: typeof r.success_rate === 'number' ? r.success_rate : 0,
@@ -256,7 +257,7 @@ router.get('/rank/overall', authenticateToken, async (req: AuthenticatedRequest,
 
     res.json(formatSuccessResponse('Overall rank retrieved', {
       rank: parseInt(rankInfo.rank) || 1,
-      user_rating: parseFloat(rankInfo.user_rating) || 1200,
+      user_rating: parseFloat(rankInfo.user_rating) || DEFAULT_ELO,
       total_players: parseInt(rankInfo.total_players) || 1,
       percentile: rankInfo.total_players > 0 
         ? Math.round((1 - (rankInfo.rank - 1) / rankInfo.total_players) * 100)

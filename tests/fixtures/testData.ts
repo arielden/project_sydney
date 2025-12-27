@@ -27,7 +27,7 @@ export const testQuestions = {
     text: 'What is 2+2?',
     correct_answer: '4',
     difficulty_rating: 0.2,
-    elo_rating: 1000,
+    elo_rating: 400,
     times_answered: 100,
     times_correct: 85,
     category_id: 'cat-math',
@@ -37,7 +37,7 @@ export const testQuestions = {
     text: 'Solve for x: 2x + 5 = 15',
     correct_answer: '5',
     difficulty_rating: 0.5,
-    elo_rating: 1200,
+    elo_rating: 500,
     times_answered: 80,
     times_correct: 50,
     category_id: 'cat-math',
@@ -47,7 +47,7 @@ export const testQuestions = {
     text: 'What is the derivative of x^3?',
     correct_answer: '3x^2',
     difficulty_rating: 0.8,
-    elo_rating: 1400,
+    elo_rating: 700,
     times_answered: 40,
     times_correct: 20,
     category_id: 'cat-calculus',
@@ -75,19 +75,19 @@ export const testCategories = {
 export const testRatings = {
   defaultPlayerRating: {
     user_id: 'test-user-1',
-    overall_elo: 1200,
+    overall_elo: 500,
     games_played: 0,
     k_factor: 100,
     wins: 0,
     losses: 0,
     streak: 0,
-    best_rating: 1200,
+    best_rating: 500,
     confidence_level: 0.5,
   },
   defaultMicroRating: {
     user_id: 'test-user-1',
     category_id: 'cat-math',
-    elo_rating: 1200,
+    elo_rating: 500,
     confidence: 0.5,
     attempts: 0,
     k_factor: 32,
@@ -137,7 +137,7 @@ export const testAttempts = {
  */
 export function createTestUserWithRatings(
   userId: string,
-  overallElo: number = 1200,
+  overallElo: number = 500,
   gamesPlayed: number = 0
 ) {
   return {

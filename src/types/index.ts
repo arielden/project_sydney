@@ -253,28 +253,28 @@ export interface RatingLevel {
 export const ELO_RATING_LEVELS: Record<string, RatingLevel> = {
   beginner: {
     min: 0,
-    max: 1000,
+    max: 400,
     label: 'Beginner',
     color: '#ef4444', // red
     description: 'Starting your learning journey'
   },
   intermediate: {
-    min: 1000,
-    max: 1300,
+    min: 400,
+    max: 600,
     label: 'Intermediate',
     color: '#f59e0b', // amber
     description: 'Building your skills'
   },
   advanced: {
-    min: 1300,
-    max: 1600,
+    min: 600,
+    max: 700,
     label: 'Advanced',
     color: '#3b82f6', // blue
     description: 'Mastering the concepts'
   },
   expert: {
-    min: 1600,
-    max: 2000,
+    min: 700,
+    max: 1000,
     label: 'Expert',
     color: '#10b981', // emerald
     description: 'Excellence achieved'

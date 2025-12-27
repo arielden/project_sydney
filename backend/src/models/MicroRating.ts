@@ -50,7 +50,8 @@ const LEGACY_CATEGORY_MAP: Record<string, number> = {
   'algebra-miscellaneous': 20
 };
 
-const DEFAULT_ELO_RATING = 1200;
+import { DEFAULT_ELO } from '../config/eloConstants';
+const DEFAULT_ELO_RATING = DEFAULT_ELO;
 
 type CategoryColumnName = 'category_id' | 'category';
 

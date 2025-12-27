@@ -222,14 +222,16 @@ export async function usernameExists(username: string): Promise<boolean> {
  * @returns Promise<void>
  * @private Internal function, doesn't throw to avoid breaking user creation
  */
+import { DEFAULT_ELO } from '../config/eloConstants';
+
 async function createInitialPlayerRating(userId: string): Promise<void> {
   try {
     const query = `
       INSERT INTO player_ratings (user_id, overall_elo, k_factor, games_played)
-      VALUES ($1, 1200, 100.00, 0)
+      VALUES ($1, $2, 100.00, 0)
     `;
     
-    await pool.query(query, [userId]);
+    await pool.query(query, [userId, DEFAULT_ELO]);
   } catch (error: any) {
     console.error('Failed to create initial player rating:', error);
     // Don't throw error here as user creation should succeed even if rating fails

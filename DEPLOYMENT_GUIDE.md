@@ -176,7 +176,7 @@ The database includes 9 tables with complete schema, indexes, triggers, and func
 
 2. **player_ratings**
    - ELO rating system for overall user performance
-   - Default rating: 1200
+   - Default rating: 500
    - Dynamic K-factor (100 for new, 40 for intermediate, 10 for experienced)
 
 3. **categories**

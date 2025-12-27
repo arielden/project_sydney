@@ -1,4 +1,5 @@
 import pool from '../config/database';
+import { DEFAULT_ELO, MIN_ELO, MAX_ELO } from '../config/eloConstants';
 
 /** Question database entity interface */
 export interface Question {
@@ -186,8 +187,8 @@ class QuestionModel {
   ): Promise<Question[]> {
     // Basic adaptive selection: get questions near user's rating
     const difficultyRange = 200; // ±200 points from user rating
-    const minDifficulty = Math.max(800, userRating - difficultyRange);
-    const maxDifficulty = Math.min(1600, userRating + difficultyRange);
+    const minDifficulty = Math.max(MIN_ELO, userRating - difficultyRange);
+    const maxDifficulty = Math.min(MAX_ELO, userRating + difficultyRange);
     
     return this.getQuestionsByDifficulty(
       minDifficulty,
@@ -227,9 +228,9 @@ class QuestionModel {
     const query = `
       SELECT 
         CASE 
-          WHEN difficulty_rating < 1000 THEN 'Easy'
-          WHEN difficulty_rating < 1200 THEN 'Medium'
-          WHEN difficulty_rating < 1400 THEN 'Hard'
+          WHEN difficulty_rating < 400 THEN 'Easy'
+          WHEN difficulty_rating < 600 THEN 'Medium'
+          WHEN difficulty_rating < 700 THEN 'Hard'
           ELSE 'Very Hard'
         END as difficulty_level,
         COUNT(*) as count,
@@ -237,9 +238,9 @@ class QuestionModel {
       FROM questions
       GROUP BY 
         CASE 
-          WHEN difficulty_rating < 1000 THEN 'Easy'
-          WHEN difficulty_rating < 1200 THEN 'Medium'
-          WHEN difficulty_rating < 1400 THEN 'Hard'
+          WHEN difficulty_rating < 400 THEN 'Easy'
+          WHEN difficulty_rating < 600 THEN 'Medium'
+          WHEN difficulty_rating < 700 THEN 'Hard'
           ELSE 'Very Hard'
         END
       ORDER BY avg_rating
@@ -283,7 +284,7 @@ class QuestionModel {
    */
   static async getPracticeQuestions(
     count: number = 20,
-    userRating: number = 1200
+    userRating: number = DEFAULT_ELO
   ): Promise<Question[]> {
     // Mix of questions: 60% at user level, 20% easier, 20% harder
     const easyCount = Math.floor(count * 0.2);
@@ -293,20 +294,20 @@ class QuestionModel {
     const promises = [
       // Easier questions
       this.getQuestionsByDifficulty(
-        Math.max(800, userRating - 300),
-        userRating - 100,
+        Math.max(200, userRating - 300),
+        Math.max(200, userRating - 100),
         easyCount
       ),
       // Normal level questions
       this.getQuestionsByDifficulty(
-        userRating - 100,
-        userRating + 100,
+        Math.max(200, userRating - 100),
+        Math.min(800, userRating + 100),
         normalCount
       ),
       // Harder questions
       this.getQuestionsByDifficulty(
-        userRating + 100,
-        Math.min(1600, userRating + 300),
+        Math.min(800, userRating + 100),
+        Math.min(800, userRating + 300),
         hardCount
       )
     ];
