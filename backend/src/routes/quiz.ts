@@ -69,10 +69,25 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
       1, // Just one question
       [] // No previous attempts for first question
     );
-    const firstQuestion = questions[0];
 
+    let firstQuestion = questions[0];
+
+    // Fallback to a random question if adaptive selection returns nothing
     if (!firstQuestion) {
-      return res.status(500).json(formatErrorResponse('No questions available'));
+      console.log('⚠️ Adaptive selection returned no questions; falling back to random selection');
+      const questionResult = await pool.query(`
+        SELECT id, question_text, options, difficulty_rating, 
+               COALESCE(elo_rating, $1) as elo_rating, 
+               COALESCE(qc.category_id, 0) as category_id, correct_answer, explanation
+        FROM questions q
+        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+        ORDER BY RANDOM() LIMIT 1
+      `, [DEFAULT_ELO]);
+      firstQuestion = questionResult.rows[0];
+
+      if (!firstQuestion) {
+        return res.status(500).json(formatErrorResponse('No questions available'));
+      }
     }
 
     res.status(201).json(formatSuccessResponse(
