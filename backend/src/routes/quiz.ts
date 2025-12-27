@@ -7,6 +7,7 @@ import QuestionAttemptModel from '../models/QuestionAttempt';
 import AdaptiveSelectionService from '../utils/adaptiveSelection';
 import { formatErrorResponse, formatSuccessResponse } from '../utils/helpers';
 import pool from '../config/database';
+import { DEFAULT_ELO } from '../config/eloConstants';
 
 const router = express.Router();
 
@@ -62,9 +63,9 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
       sessionType: sessionType
     });
 
-    // Generate adaptive first question (starting with medium difficulty)
+    // Generate adaptive first question (starting around default difficulty)
     const questions = await QuestionModel.getAdaptiveQuestions(
-      1000, // Starting rating (medium difficulty)
+      DEFAULT_ELO, // Starting rating (medium difficulty)
       1, // Just one question
       [] // No previous attempts for first question
     );
@@ -154,7 +155,7 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       const attemptedQuestionIds = attempts.map(attempt => attempt.question_id);
       const questionQuery = `
         SELECT id, question_text, options, difficulty_rating, 
-               COALESCE(elo_rating, 1200) as elo_rating, 
+               COALESCE(elo_rating, $1) as elo_rating, 
                COALESCE(qc.category_id, 0) as category_id, correct_answer, explanation
         FROM questions q
         LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
@@ -163,7 +164,8 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
         LIMIT 1
       `;
       
-      const questionResult = await pool.query(questionQuery, attemptedQuestionIds);
+      const params = attemptedQuestionIds.length > 0 ? [...attemptedQuestionIds, DEFAULT_ELO] : [DEFAULT_ELO];
+      const questionResult = await pool.query(questionQuery, params);
       question = questionResult.rows[0];
     }
 
@@ -204,8 +206,8 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       adaptive_info: {
         expected_score: Math.round(nextQuestion.expected_score * 100) / 100,
         appropriateness: Math.round(nextQuestion.appropriateness_score * 100) / 100,
-        difficulty_level: nextQuestion.elo_rating < 1300 ? 'Easy' : 
-                         nextQuestion.elo_rating < 1500 ? 'Medium' : 'Hard'
+        difficulty_level: nextQuestion.elo_rating < 600 ? 'Easy' : 
+                         nextQuestion.elo_rating < 700 ? 'Medium' : 'Hard'
       }
     }));
 
@@ -274,24 +276,33 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
     
     // Save attempt
     console.log('💾 Recording attempt...');
-    const attempt = await QuestionAttemptModel.recordAttempt({
-      sessionId,
-      questionId,
-      userId: userId!,
-      userAnswer,
-      timeSpent
-    });
+    try {
+      const attempt = await QuestionAttemptModel.recordAttempt({
+        sessionId,
+        questionId,
+        userId: userId!,
+        userAnswer,
+        timeSpent
+      });
 
-    const responseData = {
-      attempt: {
-        id: attempt.id,
-        isCorrect,
-        correctAnswer: question.correct_answer,
-        explanation: question.explanation
+      const responseData = {
+        attempt: {
+          id: attempt.id,
+          isCorrect,
+          correctAnswer: question.correct_answer,
+          explanation: question.explanation
+        }
+      };
+
+      res.json(formatSuccessResponse('Answer submitted successfully', responseData));
+    } catch (err: any) {
+      // Handle duplicate submissions gracefully
+      if (err.message && err.message.includes('already answered')) {
+        return res.status(400).json(formatErrorResponse('Question already answered', ['This question has already been answered in this session']));
       }
-    };
 
-    res.json(formatSuccessResponse('Answer submitted successfully', responseData));
+      throw err;
+    }
 
   } catch (error) {
     console.error('Error submitting answer:', error);
@@ -719,7 +730,7 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
     const questionsQuery = `
       SELECT DISTINCT ON(q.id)
         q.id, q.question_text, q.options, q.difficulty_rating, 
-        COALESCE(q.elo_rating, 1200) as elo_rating, 
+        COALESCE(q.elo_rating, $2) as elo_rating, 
         COALESCE(qc.category_id, 0) as category_id, q.correct_answer, q.explanation
       FROM questions q
       LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
@@ -727,7 +738,7 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
       LIMIT $1
     `;
     
-    const questionsResult = await pool.query(questionsQuery, [maxQuestions]);
+    const questionsResult = await pool.query(questionsQuery, [maxQuestions, DEFAULT_ELO]);
     const questions = questionsResult.rows;
 
     if (questions.length === 0) {

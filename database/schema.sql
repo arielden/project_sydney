@@ -228,7 +228,7 @@ CREATE TABLE public.player_ratings (
 );
 
 COMMENT ON TABLE public.player_ratings IS 'Overall ELO ratings and performance metrics';
-COMMENT ON COLUMN public.player_ratings.overall_elo IS 'Overall ELO rating (starting 1200)';
+COMMENT ON COLUMN public.player_ratings.overall_elo IS 'Overall ELO rating (starting 500)';
 COMMENT ON COLUMN public.player_ratings.k_factor IS 'Dynamic K-factor based on games played';
 COMMENT ON COLUMN public.player_ratings.confidence_level IS 'Confidence metric between 0.0 and 1.0';
 
@@ -381,6 +381,17 @@ COMMENT ON TABLE public.question_attempts IS 'Individual question attempts with 
 COMMENT ON COLUMN public.question_attempts.time_spent IS 'Time spent on question in seconds';
 COMMENT ON COLUMN public.question_attempts.expected_score IS 'Expected outcome probability';
 COMMENT ON COLUMN public.question_attempts.elo_change IS 'ELO rating change from this attempt';
+
+-- Ensure uniqueness: prevent duplicate attempts for the same session and question
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'question_attempts' AND indexname = 'question_attempts_session_question_unique_idx'
+  ) THEN
+    CREATE UNIQUE INDEX question_attempts_session_question_unique_idx ON public.question_attempts (session_id, question_id);
+  END IF;
+END$$;
+
 
 -- Admin Activity Log Table
 CREATE TABLE public.admin_activity_log (

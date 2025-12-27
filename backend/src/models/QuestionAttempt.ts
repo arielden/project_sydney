@@ -1,6 +1,7 @@
 import pool from '../config/database';
 import { PoolClient } from 'pg';
 import { ELOCalculator } from '../utils/eloCalculator';
+import { DEFAULT_ELO } from '../config/eloConstants';
 // Re-enable MicroRating for category-specific tracking
 import MicroRatingModel from './MicroRating';
 
@@ -88,7 +89,7 @@ class QuestionAttemptModel {
       }
       
       // Get current player rating and stats
-      let playerRatingBefore = 1200; // Default rating
+      let playerRatingBefore = DEFAULT_ELO; // Default rating
       let playerGamesPlayed = 0;
       let playerKFactor = 100;
       
@@ -101,7 +102,7 @@ class QuestionAttemptModel {
         const playerResult = await client.query(playerRatingQuery, [userId]);
         if (playerResult.rows.length > 0) {
           const playerData = playerResult.rows[0];
-          playerRatingBefore = playerData.overall_elo || 1200;
+          playerRatingBefore = playerData.overall_elo || DEFAULT_ELO;
           playerGamesPlayed = playerData.games_played || 0;
           playerKFactor = playerData.k_factor || ELOCalculator.calculatePlayerKFactor(playerGamesPlayed);
         }
@@ -110,7 +111,7 @@ class QuestionAttemptModel {
       }
       
       // Get question rating and stats
-      const questionRatingBefore = question.elo_rating || 1200;
+      const questionRatingBefore = question.elo_rating || DEFAULT_ELO;
       const questionTimesRated = question.times_answered || 0;
       const questionKFactor = ELOCalculator.calculateQuestionKFactor(questionTimesRated);
       
@@ -155,6 +156,7 @@ class QuestionAttemptModel {
           question_rating_before, question_rating_after,
           expected_score, elo_change
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (session_id, question_id) DO NOTHING
         RETURNING *
       `;
       
@@ -164,6 +166,12 @@ class QuestionAttemptModel {
         questionRatingBefore, eloResult.questionNewRating,
         eloResult.expectedScore, eloResult.playerEloChange
       ]);
+
+      // If insert was skipped due to conflict, the question was already answered in this session
+      if (attemptResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Question already answered');
+      }
       
       // Update player rating in player_ratings table with all fields
       await client.query(`
@@ -412,7 +420,7 @@ class QuestionAttemptModel {
       const enhancedResults = result.rows.map((row) => {
         return {
           ...row,
-          current_micro_rating: 1200, // Default rating
+          current_micro_rating: DEFAULT_ELO, // Default rating
           avg_rating_change: parseFloat(row.avg_rating_change) || 0
         };
       });
