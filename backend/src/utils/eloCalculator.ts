@@ -43,36 +43,71 @@ export class ELOCalculator {
   }
 
   /**
-   * Calculate new rating using ELO formula
+   * Calculate new rating using ELO formula with optional change smoothing
    * R' = R + K(S - E)
    * @param currentRating Current ELO rating
    * @param kFactor K-factor for rating volatility
    * @param actualScore Actual score (1 for correct, 0 for incorrect)
    * @param expectedScore Expected score from calculateExpectedScore
-   * @returns New ELO rating
+   * @param maxChange Optional maximum rating change per question (default: no limit)
+   * @returns New ELO rating (clamped between 200-800)
    */
   static calculateNewRating(
     currentRating: number, 
     kFactor: number, 
     actualScore: number, 
-    expectedScore: number
+    expectedScore: number,
+    maxChange?: number
   ): number {
     const ratingChange = kFactor * (actualScore - expectedScore);
-    const newRating = Math.round(currentRating + ratingChange);
+    let newRating = Math.round(currentRating + ratingChange);
     
-    // Ensure rating doesn't go below 100
-    return Math.max(100, newRating);
+    // Apply maximum change smoothing if specified
+    if (maxChange !== undefined && Math.abs(ratingChange) > maxChange) {
+      const sign = ratingChange > 0 ? 1 : -1;
+      newRating = Math.round(currentRating + sign * maxChange);
+    }
+    
+    // Ensure rating stays within 200-800 range
+    return Math.max(200, Math.min(800, newRating));
   }
 
   /**
    * Calculate dynamic K-factor for players based on experience
    * @param gamesPlayed Number of games played
+   * @param smoothing Whether to use smooth transitions between stages (default: true)
    * @returns K-factor (100 for beginners, decreases with experience)
    */
-  static calculatePlayerKFactor(gamesPlayed: number): number {
-    if (gamesPlayed < 10) return 100;
-    if (gamesPlayed < 30) return 40;
-    return 10;
+  static calculatePlayerKFactor(gamesPlayed: number, smoothing: boolean = true): number {
+    if (gamesPlayed <= 44) return 100;
+    if (gamesPlayed >= 801) return 10;
+
+    if (!smoothing) {
+      // Original staged approach
+      if (gamesPlayed <= 200) return 60;
+      if (gamesPlayed <= 400) return 40;
+      if (gamesPlayed <= 600) return 24;
+      return 16;
+    }
+
+    // Smooth interpolation between stages
+    const stages = [
+      { minQ: 44, maxQ: 200, startK: 100, endK: 60 },
+      { minQ: 200, maxQ: 400, startK: 60, endK: 40 },
+      { minQ: 400, maxQ: 600, startK: 40, endK: 24 },
+      { minQ: 600, maxQ: 800, startK: 24, endK: 16 },
+      { minQ: 800, maxQ: 1000, startK: 16, endK: 10 }
+    ];
+
+    for (const stage of stages) {
+      if (gamesPlayed >= stage.minQ && gamesPlayed <= stage.maxQ) {
+        const progress = (gamesPlayed - stage.minQ) / (stage.maxQ - stage.minQ);
+        const smoothedK = stage.startK + (stage.endK - stage.startK) * progress;
+        return Math.round(smoothedK);
+      }
+    }
+
+    return 10; // Fallback
   }
 
   /**
@@ -206,16 +241,16 @@ export class ELOCalculator {
   static getAdaptiveDifficultyRanges(playerRating: number) {
     return {
       easier: {
-        min: Math.max(100, playerRating - 200),
-        max: playerRating - 50
+        min: Math.max(200, playerRating - 100),
+        max: Math.max(200, playerRating - 25)
       },
       atLevel: {
-        min: playerRating - 50,
-        max: playerRating + 50
+        min: Math.max(200, playerRating - 25),
+        max: Math.min(800, playerRating + 25)
       },
       harder: {
-        min: playerRating + 50,
-        max: playerRating + 200
+        min: Math.min(800, playerRating + 25),
+        max: Math.min(800, playerRating + 100)
       }
     };
   }

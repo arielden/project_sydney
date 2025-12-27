@@ -13,7 +13,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "simulate:attempts": "node scripts/simulate-attempts.cjs"
+    "simulate:attempts": "node scripts/simulate-attempts.cjs",
+    "simulate:elo": "node scripts/simulate-elo-evolution.cjs",
+    "simulate:elo:smoothed": "node scripts/simulate-elo-evolution.cjs 1000 500 true",
+    "simulate:elo:staged": "node scripts/simulate-elo-evolution.cjs 1000 500 false"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

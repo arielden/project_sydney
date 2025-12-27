@@ -34,6 +34,7 @@ services:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
       - ./backend:/app
+      - ./database/schema.sql:/app/schema.sql:ro
       - /app/node_modules
     environment:
       - NODE_ENV=development

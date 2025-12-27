@@ -28,10 +28,17 @@ CREATE FUNCTION public.calculate_player_k_factor(games_played integer)
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE AS $$
 BEGIN
-    IF games_played < 10 THEN
+    -- Updated K-factor evolution with staged approach (0-1000 questions)
+    IF games_played <= 44 THEN
         RETURN 100.0;
-    ELSIF games_played < 30 THEN
+    ELSIF games_played <= 200 THEN
+        RETURN 60.0;
+    ELSIF games_played <= 400 THEN
         RETURN 40.0;
+    ELSIF games_played <= 600 THEN
+        RETURN 24.0;
+    ELSIF games_played <= 800 THEN
+        RETURN 16.0;
     ELSE
         RETURN 10.0;
     END IF;
@@ -200,19 +207,19 @@ COMMENT ON COLUMN public.users.role IS 'User role: user (default) or admin';
 CREATE TABLE public.player_ratings (
     id integer NOT NULL,
     user_id integer NOT NULL,
-    overall_elo integer DEFAULT 1200,
-    k_factor numeric(5,2) DEFAULT 40.0,
+    overall_elo integer DEFAULT 500,
+    k_factor numeric(5,2) DEFAULT 100.0,
     games_played integer DEFAULT 0,
     wins integer DEFAULT 0,
     losses integer DEFAULT 0,
     streak integer DEFAULT 0,
-    best_rating integer DEFAULT 1200,
+    best_rating integer DEFAULT 500,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     confidence_level numeric(3,2) DEFAULT 0.0,
     CONSTRAINT player_ratings_pkey PRIMARY KEY (id),
     CONSTRAINT player_ratings_user_id_unique UNIQUE (user_id),
-    CONSTRAINT player_ratings_elo_rating_check CHECK ((overall_elo >= 0)),
+    CONSTRAINT player_ratings_elo_rating_check CHECK ((overall_elo >= 200 AND overall_elo <= 800)),
     CONSTRAINT player_ratings_games_played_check CHECK ((games_played >= 0)),
     CONSTRAINT player_ratings_losses_check CHECK ((losses >= 0)),
     CONSTRAINT player_ratings_wins_check CHECK ((wins >= 0)),
@@ -252,18 +259,16 @@ CREATE TABLE public.micro_ratings (
     id integer NOT NULL,
     user_id integer NOT NULL,
     category_id integer NOT NULL,
-    elo_rating integer DEFAULT 1200,
+    elo_rating integer DEFAULT 500,
     confidence numeric(3,2) DEFAULT 0.5,
-    attempts integer DEFAULT 0,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT micro_ratings_pkey PRIMARY KEY (id),
     CONSTRAINT micro_ratings_user_id_category_id_key 
         UNIQUE (user_id, category_id),
-    CONSTRAINT micro_ratings_attempts_check CHECK ((attempts >= 0)),
     CONSTRAINT micro_ratings_confidence_check CHECK (((confidence >= (0)::numeric) 
         AND (confidence <= (1)::numeric))),
-    CONSTRAINT micro_ratings_elo_rating_check CHECK ((elo_rating >= 0)),
+    CONSTRAINT micro_ratings_elo_rating_check CHECK ((elo_rating >= 200 AND elo_rating <= 800)),
     CONSTRAINT micro_ratings_user_id_fkey FOREIGN KEY (user_id) 
         REFERENCES public.users(id) ON DELETE CASCADE,
     CONSTRAINT micro_ratings_category_id_fkey FOREIGN KEY (category_id)
@@ -281,7 +286,7 @@ CREATE TABLE public.questions (
     options jsonb NOT NULL,
     correct_answer character varying(10) NOT NULL,
     explanation text,
-    difficulty_rating integer DEFAULT 1200,
+    difficulty_rating integer DEFAULT 500,
     stem_id integer,
     clone_number integer DEFAULT 0,
     times_answered integer DEFAULT 0,
@@ -289,12 +294,12 @@ CREATE TABLE public.questions (
     is_diagnostic boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    elo_rating integer DEFAULT 1200,
+    elo_rating integer DEFAULT 500,
     k_factor numeric(5,2) DEFAULT 40.0,
     reliability numeric(3,2) DEFAULT 0.0,
     times_rated integer DEFAULT 0,
     CONSTRAINT questions_pkey PRIMARY KEY (id),
-    CONSTRAINT questions_elo_rating_check CHECK ((elo_rating >= 0)),
+    CONSTRAINT questions_elo_rating_check CHECK ((elo_rating >= 200 AND elo_rating <= 800)),
     CONSTRAINT questions_reliability_check CHECK (((reliability >= 0.0) 
         AND (reliability <= 1.0))),
     CONSTRAINT questions_times_rated_check CHECK ((times_rated >= 0)),

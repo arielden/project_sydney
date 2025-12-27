@@ -61,6 +61,66 @@ docker compose exec frontend npm install new-package
 docker compose exec postgres psql -U admin -d sidney_db
 ```
 
+## 🎯 ELO Rating System
+
+Sidney uses an adaptive ELO rating system to assess student proficiency and select appropriate questions.
+
+### Rating Scale
+- **User ratings**: 200-800 (200 = beginner, 500 = provisional/new user, 800 = expert)
+- **Question ratings**: 200-800 (200 = very easy, 500 = medium, 800 = very hard)
+- **New users start at 500** as provisional rating
+
+### K-Factor Evolution Strategy
+
+The K-factor (volatility factor) decreases in stages as students answer more questions, allowing for rapid initial assessment followed by stable long-term ratings:
+
+- **Questions 1-44**: K=100 (High volatility for initial assessment)
+- **Questions 45-200**: K=100→60 (linear interpolation)
+- **Questions 201-400**: K=60→40 (linear interpolation)
+- **Questions 401-600**: K=40→24 (linear interpolation)
+- **Questions 601-800**: K=24→16 (linear interpolation)
+- **Questions 801-1000**: K=16→10 (linear interpolation)
+- **Questions 1000+**: K=10 (Stable, established ratings)
+
+#### Smoothing Factor
+
+The system implements multiple smoothing techniques to prevent rating volatility:
+
+1. **K-factor interpolation**: Linear interpolation between stages instead of abrupt jumps
+2. **Rating change limits**: Optional maximum rating change per question (e.g., ±50 points)
+
+You can compare different smoothing approaches:
+- **Smoothed K-factor + unlimited changes** (recommended): Gradual K-factor changes
+- **Staged K-factor**: Abrupt K-factor changes at stage boundaries  
+- **With change limits**: Prevents extreme rating swings (e.g., max ±50 per question)
+
+### Running ELO Simulations
+
+To see how ratings evolve over 1000 questions:
+
+```bash
+# Build backend first
+cd backend && npm run build
+
+# Run smoothed simulation (default, recommended)
+npm run simulate:elo:smoothed
+
+# Run staged simulation (original approach)
+npm run simulate:elo:staged
+
+# Custom simulations:
+# 500 questions, starting rating 1500, smoothed
+node scripts/simulate-elo-evolution.cjs 500 600 true
+
+# 1000 questions, max 50-point changes per question
+node scripts/simulate-elo-evolution.cjs 1000 500 true 50
+
+# Staged K-factor, unlimited changes
+node scripts/simulate-elo-evolution.cjs 1000 500 false
+```
+
+The simulations generate CSV files showing how different smoothing approaches affect rating stability and convergence.
+
 ### Local Development (Alternative)
 
 If you prefer to run the frontend locally:

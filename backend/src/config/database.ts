@@ -157,13 +157,21 @@ export async function initializeDatabase(): Promise<boolean> {
 
     console.log('🔄 Initializing database schema...');
     
-    // Run initial migration
-    const migrationSuccess = await runMigration('001_initial_schema.sql');
-    if (!migrationSuccess) {
-      throw new Error('Failed to run initial migration');
+    // Run schema.sql directly
+    const schemaPath = path.join(process.cwd(), '..', 'database', 'schema.sql');
+    
+    if (!fs.existsSync(schemaPath)) {
+      throw new Error(`Schema file not found: ${schemaPath}`);
     }
 
-    console.log('✅ Database initialization completed');
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    const client = await pool.connect();
+    
+    console.log(`🔄 Running schema initialization`);
+    await client.query(sql);
+    client.release();
+    
+    console.log(`✅ Schema initialization completed`);
     return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
@@ -203,6 +211,87 @@ export async function runAllMigrations(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('❌ Migration process failed:', error);
+    return false;
+  }
+}
+
+// Drop and recreate database
+export async function dropDatabase(): Promise<boolean> {
+  try {
+    console.log('🗑️  Dropping database...');
+    
+    // Create admin connection config pointing to postgres database
+    let adminConfig: PoolConfig;
+    
+    if (process.env.DATABASE_URL) {
+      // Parse DATABASE_URL and replace database name with 'postgres'
+      const url = new URL(process.env.DATABASE_URL);
+      url.pathname = '/postgres'; // Change database to postgres
+      adminConfig = {
+        connectionString: url.toString(),
+        max: 5,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      };
+    } else {
+      // Use individual DB_* variables but connect to postgres
+      adminConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432'),
+        database: 'postgres', // Connect to postgres for admin operations
+        user: process.env.DB_USER || 'admin',
+        password: process.env.DB_PASSWORD || 'admin123',
+        max: 5,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      };
+    }
+    
+    const adminPool = new Pool(adminConfig);
+    const dbName = process.env.DB_NAME || 'sydney_db';
+    
+    // Terminate active connections (ignore errors if database doesn't exist)
+    try {
+      await adminPool.query(`
+        SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity 
+        WHERE datname = $1 AND pid <> pg_backend_pid()
+      `, [dbName]);
+    } catch (error) {
+      console.log('⚠️  Could not terminate connections (database may not exist)');
+    }
+    
+    // Drop the database (ignore errors if it doesn't exist)
+    try {
+      await adminPool.query(`DROP DATABASE IF EXISTS "${dbName}"`);
+      console.log('✅ Database dropped');
+    } catch (error) {
+      console.log('⚠️  Database drop failed (may not exist):', (error as Error).message);
+    }
+    
+    // Recreate the database
+    try {
+      await adminPool.query(`CREATE DATABASE "${dbName}"`);
+      console.log('✅ Database created');
+    } catch (error) {
+      console.log('⚠️  Database create failed:', (error as Error).message);
+      // If create fails, try without quotes
+      try {
+        await adminPool.query(`CREATE DATABASE ${dbName}`);
+        console.log('✅ Database created (without quotes)');
+      } catch (error2) {
+        console.log('❌ Database create failed completely:', (error2 as Error).message);
+        await adminPool.end();
+        return false;
+      }
+    }
+    
+    await adminPool.end();
+    
+    console.log('✅ Database recreated successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Database recreate failed:', error);
     return false;
   }
 }
