@@ -10,7 +10,8 @@ export interface QuizSession {
   is_paused: boolean;
   pause_time?: Date;
   total_pause_duration: number; // seconds
-  status: 'active' | 'completed' | 'abandoned';
+  status: 'active' | 'paused' | 'completed' | 'abandoned';
+  total_time_spent?: number; // seconds
   created_at: Date;
 }
 
@@ -65,7 +66,7 @@ class QuizSessionModel {
   static async pauseSession(sessionId: string): Promise<QuizSession> {
     const query = `
       UPDATE quiz_sessions 
-      SET is_paused = true, pause_time = NOW()
+      SET is_paused = true, pause_time = NOW(), status = 'paused'
       WHERE id = $1 AND status = 'active'
       RETURNING *
     `;
@@ -115,6 +116,7 @@ class QuizSessionModel {
         UPDATE quiz_sessions 
         SET is_paused = false, 
             pause_time = NULL,
+            status = 'active',
             total_pause_duration = total_pause_duration + $1
         WHERE id = $2
         RETURNING *
@@ -152,6 +154,13 @@ class QuizSessionModel {
       }
       
       const session = sessionResult.rows[0];
+      
+      // Check if already completed
+      if (session.status === 'completed') {
+        await client.query('COMMIT');
+        return session;
+      }
+      
       let totalPauseDuration = session.total_pause_duration;
       
       // If session is currently paused, add final pause duration

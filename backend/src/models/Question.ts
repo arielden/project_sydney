@@ -23,6 +23,8 @@ export interface QuestionFilters {
   questionTypes?: string[];
   minDifficulty?: number;
   maxDifficulty?: number;
+  minEloRating?: number;
+  maxEloRating?: number;
   excludeIds?: string[];
   isDiagnostic?: boolean;
 }
@@ -32,7 +34,7 @@ export interface QuestionFilters {
  */
 class QuestionModel {
   /**
-   * Get random questions with optional filters
+   * Get random questions with optional filters (optimized version)
    * @param count - Number of questions to retrieve
    * @param filters - Optional filters to apply
    * @returns Promise<Question[]> - Array of questions
@@ -44,10 +46,76 @@ class QuestionModel {
     const { 
       questionTypes, 
       minDifficulty, 
-      maxDifficulty, 
+      maxDifficulty,
+      minEloRating,
+      maxEloRating,
       excludeIds, 
       isDiagnostic 
     } = filters;
+    
+    // First, get total count of matching questions for efficient sampling
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM questions 
+      WHERE 1=1
+    `;
+    const countParams: any[] = [];
+    let countParamIndex = 1;
+    
+    // Apply same filters to count query
+    if (questionTypes && questionTypes.length > 0) {
+      countQuery += ` AND question_type = ANY($${countParamIndex})`;
+      countParams.push(questionTypes);
+      countParamIndex++;
+    }
+    
+    if (minDifficulty !== undefined) {
+      countQuery += ` AND difficulty_rating >= $${countParamIndex}`;
+      countParams.push(minDifficulty);
+      countParamIndex++;
+    }
+    
+    if (maxDifficulty !== undefined) {
+      countQuery += ` AND difficulty_rating <= $${countParamIndex}`;
+      countParams.push(maxDifficulty);
+      countParamIndex++;
+    }
+    
+    if (minEloRating !== undefined) {
+      countQuery += ` AND elo_rating >= $${countParamIndex}`;
+      countParams.push(minEloRating);
+      countParamIndex++;
+    }
+    
+    if (maxEloRating !== undefined) {
+      countQuery += ` AND elo_rating <= $${countParamIndex}`;
+      countParams.push(maxEloRating);
+      countParamIndex++;
+    }
+    
+    if (excludeIds && excludeIds.length > 0) {
+      countQuery += ` AND id != ALL($${countParamIndex})`;
+      countParams.push(excludeIds);
+      countParamIndex++;
+    }
+    
+    if (isDiagnostic !== undefined) {
+      countQuery += ` AND is_diagnostic = $${countParamIndex}`;
+      countParams.push(isDiagnostic);
+      countParamIndex++;
+    }
+    
+    const countResult = await pool.query(countQuery, countParams);
+    const totalQuestions = parseInt(countResult.rows[0].total);
+    
+    if (totalQuestions === 0) {
+      return [];
+    }
+    
+    // Use TABLESAMPLE for better performance on large tables
+    // Limit sample size to avoid too many results
+    const sampleSize = Math.min(totalQuestions, Math.max(count * 3, 50));
+    const samplePercentage = Math.min((sampleSize / totalQuestions) * 100, 100);
     
     let query = `
       SELECT * FROM questions 
@@ -75,6 +143,18 @@ class QuestionModel {
       paramIndex++;
     }
     
+    if (minEloRating !== undefined) {
+      query += ` AND elo_rating >= $${paramIndex}`;
+      queryParams.push(minEloRating);
+      paramIndex++;
+    }
+    
+    if (maxEloRating !== undefined) {
+      query += ` AND elo_rating <= $${paramIndex}`;
+      queryParams.push(maxEloRating);
+      paramIndex++;
+    }
+    
     if (excludeIds && excludeIds.length > 0) {
       query += ` AND id != ALL($${paramIndex})`;
       queryParams.push(excludeIds);
@@ -87,8 +167,13 @@ class QuestionModel {
       paramIndex++;
     }
     
-    // Random order and limit
-    query += ` ORDER BY RANDOM() LIMIT $${paramIndex}`;
+    // Use TABLESAMPLE BERNOULLI for efficient random sampling
+    query += ` TABLESAMPLE BERNOULLI($${paramIndex})`;
+    queryParams.push(samplePercentage);
+    paramIndex++;
+    
+    // Limit to desired count
+    query += ` LIMIT $${paramIndex}`;
     queryParams.push(count);
     
     try {
@@ -142,8 +227,8 @@ class QuestionModel {
     excludeIds: string[] = []
   ): Promise<Question[]> {
     return this.getRandomQuestions(count, {
-      minDifficulty: minRating,
-      maxDifficulty: maxRating,
+      minEloRating: minRating,
+      maxEloRating: maxRating,
       excludeIds
     });
   }

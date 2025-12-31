@@ -145,13 +145,20 @@ const AdminDashboard: React.FC = () => {
                 <Database className="w-5 h-5" />
                 Quick Actions
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <Link
                   to="/admin/tables"
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-blue-900 transition-colors"
                 >
                   <span className="font-medium text-gray-900">View All Tables</span>
                   <ArrowRight className="w-4 h-4 text-blue-900" />
+                </Link>
+                <Link
+                  to="/admin/database"
+                  className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-slate-50 hover:border-red-500 transition-colors"
+                >
+                  <span className="font-medium text-red-600">Database Management</span>
+                  <ArrowRight className="w-4 h-4 text-red-500" />
                 </Link>
                 <Link
                   to="/admin/tables/users/new"

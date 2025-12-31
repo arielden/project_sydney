@@ -94,78 +94,6 @@ describe('PlayerRatings', () => {
     });
   });
 
-  describe('streak tracking', () => {
-    it('should initialize streak to 0', async () => {
-      const expected = {
-        streak: 0,
-      };
-
-      // Expected assertion:
-      // const result = await PlayerRatingModel.getPlayerRating(userId);
-      // expect(result.streak).toBe(0);
-    });
-
-    it('should increment positive streak on consecutive wins', async () => {
-      // Win, Win, Win -> streak = 3
-
-      const expected = {
-        streak: 3,
-      };
-
-      // Expected assertion:
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // const result = await PlayerRatingModel.recordAttempt(userId, true);
-      // expect(result.streak).toBe(3);
-    });
-
-    it('should decrement negative streak on consecutive losses', async () => {
-      // Loss, Loss, Loss -> streak = -3
-
-      const expected = {
-        streak: -3,
-      };
-
-      // Expected assertion:
-      // await PlayerRatingModel.recordAttempt(userId, false);
-      // await PlayerRatingModel.recordAttempt(userId, false);
-      // const result = await PlayerRatingModel.recordAttempt(userId, false);
-      // expect(result.streak).toBe(-3);
-    });
-
-    it('should reset streak on opposite result', async () => {
-      // Win, Win, Win (+3), Loss (-1)
-      // After loss: streak = -1
-
-      const expected = {
-        streak: -1,
-      };
-
-      // Expected assertion:
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // const result = await PlayerRatingModel.recordAttempt(userId, false);
-      // expect(result.streak).toBe(-1);
-    });
-
-    it('should not reset streak on same result', async () => {
-      // Win, Win, Loss (-1), Win (+1)
-      // After win: streak = 1
-
-      const expected = {
-        streak: 1,
-      };
-
-      // Expected assertion:
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // await PlayerRatingModel.recordAttempt(userId, true);
-      // await PlayerRatingModel.recordAttempt(userId, false);
-      // const result = await PlayerRatingModel.recordAttempt(userId, true);
-      // expect(result.streak).toBe(1);
-    });
-  });
-
   describe('confidence_level', () => {
     it('should initialize to 0.5', async () => {
       const expected = {
@@ -244,7 +172,6 @@ describe('PlayerRatings', () => {
         k_factor: 100,
         wins: 0,
         losses: 0,
-        streak: 0,
         best_rating: 500,
         confidence_level: 0.5,
       };

@@ -16,9 +16,34 @@ describe('Concurrent submissions', () => {
     // Create a real session for the user
     const session = await QuizSessionModel.createSession({ userId, sessionType: 'practice' });
 
-    // Pick an existing question from DB
-    const qRes = await pool.query('SELECT id FROM questions LIMIT 1');
-    const questionId = qRes.rows[0].id;
+    // Pick an existing question from DB, or create one if none exists
+    let qRes = await pool.query('SELECT id FROM questions LIMIT 1');
+    let questionId: string;
+    
+    if (qRes.rows.length === 0) {
+      // Create a test question if none exists
+      const questionInsert = await pool.query(
+        `INSERT INTO questions (question_text, options, correct_answer, elo_rating) 
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        ['Test question?', '[{"id": "A", "text": "Answer A"}]', 'A', 500]
+      );
+      questionId = questionInsert.rows[0].id;
+      
+      // Also create a category and link it
+      await pool.query(
+        `INSERT INTO categories (name, description) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING`,
+        ['test-category', 'Test category for concurrency test']
+      );
+      const catRes = await pool.query('SELECT id FROM categories WHERE name = $1', ['test-category']);
+      if (catRes.rows.length > 0) {
+        await pool.query(
+          'INSERT INTO question_categories (question_id, category_id, is_primary) VALUES ($1, $2, $3)',
+          [questionId, catRes.rows[0].id, true]
+        );
+      }
+    } else {
+      questionId = qRes.rows[0].id;
+    }
 
     // Clean up any existing attempts for safety
     await pool.query('DELETE FROM question_attempts WHERE session_id = $1 AND question_id = $2', [session.id, questionId]);

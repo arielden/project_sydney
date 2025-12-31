@@ -32,6 +32,7 @@ interface SidebarLink {
 const sidebarLinks: SidebarLink[] = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'All Tables', href: '/admin/tables', icon: Database },
+  { name: 'Database Management', href: '/admin/database', icon: Settings },
   { name: 'Users', href: '/admin/tables/users', icon: Users },
   { name: 'Questions', href: '/admin/tables/questions', icon: HelpCircle },
   { name: 'Quiz Sessions', href: '/admin/tables/quiz_sessions', icon: FileText },

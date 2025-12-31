@@ -5,6 +5,10 @@ import { DEFAULT_ELO } from '../config/eloConstants';
 // Re-enable MicroRating for category-specific tracking
 import MicroRatingModel from './MicroRating';
 
+// Simple in-memory cache for user ratings (TTL: 5 minutes)
+const userRatingCache = new Map<string, { rating: number; gamesPlayed: number; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export interface QuestionAttempt {
   id: string;
   session_id: string;
@@ -26,6 +30,7 @@ export interface CreateAttemptData {
   userId: string;
   userAnswer: string;
   timeSpent: number;
+  client?: PoolClient; // Optional client for batch operations
 }
 
 export interface SessionScore {
@@ -42,11 +47,12 @@ class QuestionAttemptModel {
    * Record a new question attempt with simplified scoring
    */
   static async recordAttempt(data: CreateAttemptData): Promise<QuestionAttempt> {
-    const { sessionId, questionId, userId, userAnswer, timeSpent } = data;
+    const { sessionId, questionId, userId, userAnswer, timeSpent, client: providedClient } = data;
     
     console.log('🎯 Recording attempt (simplified):', { sessionId, questionId, userId, userAnswer, timeSpent });
     
-    const client: PoolClient = await pool.connect();
+    const client: PoolClient = providedClient || await pool.connect();
+    const shouldReleaseClient = !providedClient;
     
     try {
       await client.query('BEGIN');
@@ -88,26 +94,42 @@ class QuestionAttemptModel {
         console.log('ℹ️ Micro ratings already initialized or failed:', initError instanceof Error ? initError.message : 'Unknown error');
       }
       
-      // Get current player rating and stats
+      // Get current player rating and stats (with caching)
       let playerRatingBefore = DEFAULT_ELO; // Default rating
       let playerGamesPlayed = 0;
       let playerKFactor = 100;
       
-      try {
-        const playerRatingQuery = `
-          SELECT overall_elo, games_played, k_factor 
-          FROM player_ratings 
-          WHERE user_id = $1
-        `;
-        const playerResult = await client.query(playerRatingQuery, [userId]);
-        if (playerResult.rows.length > 0) {
-          const playerData = playerResult.rows[0];
-          playerRatingBefore = playerData.overall_elo || DEFAULT_ELO;
-          playerGamesPlayed = playerData.games_played || 0;
-          playerKFactor = playerData.k_factor || ELOCalculator.calculatePlayerKFactor(playerGamesPlayed);
+      // Check cache first
+      const cachedRating = userRatingCache.get(userId);
+      if (cachedRating && (Date.now() - cachedRating.timestamp) < CACHE_TTL) {
+        playerRatingBefore = cachedRating.rating;
+        playerGamesPlayed = cachedRating.gamesPlayed;
+        playerKFactor = ELOCalculator.calculatePlayerKFactor(playerGamesPlayed);
+      } else {
+        // Fetch from database
+        try {
+          const playerRatingQuery = `
+            SELECT overall_elo, games_played, k_factor 
+            FROM player_ratings 
+            WHERE user_id = $1
+          `;
+          const playerResult = await client.query(playerRatingQuery, [userId]);
+          if (playerResult.rows.length > 0) {
+            const playerData = playerResult.rows[0];
+            playerRatingBefore = playerData.overall_elo || DEFAULT_ELO;
+            playerGamesPlayed = playerData.games_played || 0;
+            playerKFactor = playerData.k_factor || ELOCalculator.calculatePlayerKFactor(playerGamesPlayed);
+            
+            // Cache the result
+            userRatingCache.set(userId, {
+              rating: playerRatingBefore,
+              gamesPlayed: playerGamesPlayed,
+              timestamp: Date.now()
+            });
+          }
+        } catch (playerError) {
+          console.log('⚠️ Could not fetch player rating, using defaults:', playerError instanceof Error ? playerError.message : 'Unknown error');
         }
-      } catch (playerError) {
-        console.log('⚠️ Could not fetch player rating, using defaults:', playerError instanceof Error ? playerError.message : 'Unknown error');
       }
       
       // Get question rating and stats
@@ -177,8 +199,8 @@ class QuestionAttemptModel {
       await client.query(`
         INSERT INTO player_ratings (
           user_id, overall_elo, games_played, k_factor, 
-          wins, losses, streak, best_rating, confidence_level, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          wins, losses, best_rating, confidence_level, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
         ON CONFLICT (user_id) 
         DO UPDATE SET 
           overall_elo = $2,
@@ -186,20 +208,8 @@ class QuestionAttemptModel {
           k_factor = $4,
           wins = player_ratings.wins + $5,
           losses = player_ratings.losses + $6,
-          streak = CASE 
-            WHEN $5 = 1 THEN 
-              CASE 
-                WHEN player_ratings.streak >= 0 THEN player_ratings.streak + 1
-                ELSE 1
-              END
-            ELSE
-              CASE 
-                WHEN player_ratings.streak <= 0 THEN player_ratings.streak - 1
-                ELSE -1
-              END
-          END,
-          best_rating = GREATEST(player_ratings.best_rating, $8),
-          confidence_level = ROUND($9::numeric, 2),
+          best_rating = GREATEST(player_ratings.best_rating, $7),
+          confidence_level = ROUND($8::numeric, 2),
           updated_at = NOW()
       `, [
         userId, 
@@ -208,10 +218,12 @@ class QuestionAttemptModel {
         eloResult.playerNewKFactor,
         isCorrect ? 1 : 0,  // wins increment
         isCorrect ? 0 : 1,  // losses increment
-        0,  // streak parameter (calculated in UPDATE)
         eloResult.playerNewRating,  // best_rating
         playerConfidence  // confidence level
       ]);
+      
+      // Invalidate cache after rating update
+      userRatingCache.delete(userId);
       
       // Update question with ELO results
       await client.query(`
@@ -274,7 +286,9 @@ class QuestionAttemptModel {
       });
       throw new Error(`Failed to record question attempt: ${errorMessage}`);
     } finally {
-      client.release();
+      if (shouldReleaseClient) {
+        client.release();
+      }
     }
   }
 

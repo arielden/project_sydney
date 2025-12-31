@@ -348,7 +348,7 @@ async function handleUpdateProfile(req: AuthenticatedRequest, res: Response): Pr
 /**
  * Logout user handler (client-side token removal)
  */
-async function handleLogout(req: AuthenticatedRequest, res: Response): Promise<void> {
+async function handleLogout(_req: AuthenticatedRequest, res: Response): Promise<void> {
   // Since JWT tokens are stateless, logout is handled client-side
   // This endpoint exists for consistency and future features (like token blacklisting)
   res.status(200).json(formatSuccessResponse('Logout successful'));

@@ -40,7 +40,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
  * GET /api/question-types/categories
  * Get distinct categories
  */
-router.get('/categories', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/categories', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const categories = await QuestionTypeModel.getCategories();
     res.json({

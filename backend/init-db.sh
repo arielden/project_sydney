@@ -39,3 +39,17 @@ else
   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/schema.sql
   echo "Database schema initialized successfully!"
 fi
+
+# Run seed data (idempotent - safe to run multiple times)
+echo "Running seed data..."
+if [ -f /app/database/seeds/seed_categories.sql ]; then
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/seeds/seed_categories.sql
+  echo "Categories seed data loaded!"
+fi
+
+if [ -f /app/database/seeds/seed_development_m2m.sql ]; then
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/seeds/seed_development_m2m.sql
+  echo "Development seed data loaded!"
+fi
+
+echo "Database initialization complete!"

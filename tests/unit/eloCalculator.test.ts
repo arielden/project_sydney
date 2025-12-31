@@ -128,19 +128,19 @@ describe('ELOCalculator', () => {
   });
 
   describe('calculatePlayerKFactor', () => {
-    it('should return 100 for new players with few games', () => {
+    it('should return 25 for new players with few games', () => {
       const kFactor = ELOCalculator.calculatePlayerKFactor(0);
-      expect(kFactor).toBe(100);
+      expect(kFactor).toBe(25);
     });
 
     it('should return interpolated K for intermediate players', () => {
       const kFactor = ELOCalculator.calculatePlayerKFactor(300);
-      expect(kFactor).toBe(50);
+      expect(kFactor).toBe(1.19);
     });
 
-    it('should return 10 for experienced players', () => {
+    it('should return 0.37 for experienced players', () => {
       const kFactor = ELOCalculator.calculatePlayerKFactor(1000);
-      expect(kFactor).toBe(10);
+      expect(kFactor).toBe(0.37);
     });
 
     it('should decrease K-factor with more games', () => {
@@ -152,6 +152,64 @@ describe('ELOCalculator', () => {
       expect(k0).toBeGreaterThan(k50);
       expect(k50).toBeGreaterThanOrEqual(k250);
       expect(k250).toBeGreaterThanOrEqual(k900);
+    });
+  });
+
+  describe('rating progression and caps', () => {
+    it('should cap rating changes at ±20 points per question', () => {
+      // Very strong player vs very easy question
+      const strongPlayerVsEasyQuestion = ELOCalculator.performELOCalculation(
+        { currentRating: 800, kFactor: 25, gamesPlayed: 0 },
+        { currentRating: 200, kFactor: 40, timesRated: 5 },
+        true // correct answer
+      );
+
+      // Very weak player vs very hard question
+      const weakPlayerVsHardQuestion = ELOCalculator.performELOCalculation(
+        { currentRating: 200, kFactor: 25, gamesPlayed: 0 },
+        { currentRating: 800, kFactor: 40, timesRated: 5 },
+        false // incorrect answer
+      );
+
+      expect(strongPlayerVsEasyQuestion.playerEloChange).toBeLessThanOrEqual(20);
+      expect(weakPlayerVsHardQuestion.playerEloChange).toBeGreaterThanOrEqual(-20);
+    });
+
+    it('should allow ratings to reach around 800 for advanced players', () => {
+      let rating = 500;
+      let gamesPlayed = 50; // Moderately experienced player
+
+      // Simulate many correct answers against slightly easier questions
+      for (let i = 0; i < 300; i++) {
+        const kFactor = ELOCalculator.calculatePlayerKFactor(gamesPlayed);
+        const questionRating = Math.max(300, rating - 50); // Questions slightly below player rating
+        const result = ELOCalculator.performELOCalculation(
+          { currentRating: rating, kFactor, gamesPlayed },
+          { currentRating: questionRating, kFactor: 20, timesRated: 100 },
+          true
+        );
+        rating = result.playerNewRating;
+        gamesPlayed++;
+      }
+
+      // Should be able to reach high ratings but not exceed 800 significantly
+      expect(rating).toBeGreaterThan(700);
+      expect(rating).toBeLessThan(850);
+    });
+
+    it('should prevent extreme rating inflation with conservative K-factor', () => {
+      let rating = 500;
+      const gamesPlayed = 2000; // Very experienced player
+      const kFactor = ELOCalculator.calculatePlayerKFactor(gamesPlayed);
+
+      // Even with perfect performance, rating changes should be minimal
+      const result = ELOCalculator.performELOCalculation(
+        { currentRating: rating, kFactor, gamesPlayed },
+        { currentRating: 300, kFactor: 20, timesRated: 100 },
+        true
+      );
+
+      expect(result.playerEloChange).toBeLessThan(1); // Very small change due to low K-factor
     });
   });
 

@@ -71,6 +71,8 @@ interface QuizState {
   isLoading: boolean;
   error: string | null;
   isMarkedForReview: boolean;
+  isSubmitting: boolean;
+  submissionError: string | null;
   
   // Results
   quizResults: any | null;
@@ -80,7 +82,7 @@ interface QuizState {
 type QuizAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'START_QUIZ_SUCCESS'; payload: { session: QuizSession; question: Question; totalQuestions: number } }
+  | { type: 'START_QUIZ_SUCCESS'; payload: { session: QuizSession } }
   | { type: 'LOAD_ALL_QUESTIONS'; payload: { questions: Question[]; totalQuestions: number } }
   | { type: 'GO_TO_QUESTION'; payload: number }
   | { type: 'LOAD_QUESTION'; payload: Question }
@@ -92,7 +94,9 @@ type QuizAction =
   | { type: 'SET_TIME_ELAPSED'; payload: number }
   | { type: 'TOGGLE_MARK_FOR_REVIEW' }
   | { type: 'LOAD_QUIZ_RESULTS'; payload: any }
-  | { type: 'RESET_QUIZ' };
+  | { type: 'RESET_QUIZ' }
+  | { type: 'SET_SUBMITTING'; payload: boolean }
+  | { type: 'SET_SUBMISSION_ERROR'; payload: string | null };
 
 // Initial state
 const initialState: QuizState = {
@@ -108,6 +112,8 @@ const initialState: QuizState = {
   isLoading: false,
   error: null,
   isMarkedForReview: false,
+  isSubmitting: false,
+  submissionError: null,
   quizResults: null,
 };
 
@@ -124,11 +130,11 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
       return {
         ...state,
         currentSession: action.payload.session,
-        currentQuestion: action.payload.question,
+        currentQuestion: null, // Will be set when questions are loaded
         questions: [], // Will be populated by LOAD_ALL_QUESTIONS
         currentQuestionIndex: 0,
-        questionNumber: action.payload.question.questionNumber || 1,
-        totalQuestions: action.payload.totalQuestions,
+        questionNumber: 1, // Default to 1, will be updated when questions load
+        totalQuestions: 0, // Will be set when questions are loaded
         answers: [],
         timeElapsed: 0,
         isPaused: false,
@@ -236,6 +242,12 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
     case 'RESET_QUIZ':
       return initialState;
       
+    case 'SET_SUBMITTING':
+      return { ...state, isSubmitting: action.payload, submissionError: null };
+      
+    case 'SET_SUBMISSION_ERROR':
+      return { ...state, submissionError: action.payload, isSubmitting: false };
+      
     default:
       return state;
   }
@@ -257,6 +269,8 @@ interface QuizContextType {
   isLoading: boolean;
   error: string | null;
   isMarkedForReview: boolean;
+  isSubmitting: boolean;
+  submissionError: string | null;
   quizResults: any | null;
   
   // Functions
@@ -274,6 +288,7 @@ interface QuizContextType {
   toggleMarkForReview: () => void;
   resetQuiz: () => void;
   setTimeElapsed: (time: number) => void;
+  submitQuiz: (answers: Map<number, string>, questionTimes: Map<number, number>) => Promise<void>;
 }
 
 const QuizContext = createContext<QuizContextType | undefined>(undefined);
@@ -295,9 +310,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       dispatch({
         type: 'START_QUIZ_SUCCESS',
         payload: {
-          session: result.session,
-          question: result.question,
-          totalQuestions: result.totalQuestions
+          session: result.session
         }
       });
       return result.session.id; // Return session ID
@@ -495,6 +508,57 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.currentSession]);
 
+  // Submit quiz with all answers
+  const submitQuiz = useCallback(async (answers: Map<number, string>, questionTimes: Map<number, number>) => {
+    try {
+      if (!state.currentSession) {
+        throw new Error('No active quiz session');
+      }
+
+      dispatch({ type: 'SET_SUBMITTING', payload: true });
+
+      // Prepare batch answers array
+      const batchAnswers = [];
+      for (const [index, answer] of answers.entries()) {
+        const question = state.questions[index];
+        if (question) {
+          const timeSpent = questionTimes.get(index) || 30;
+          batchAnswers.push({
+            questionId: parseInt(question.id),
+            userAnswer: answer,
+            timeSpent
+          });
+        }
+      }
+
+      // Submit all answers in a single batch request
+      await quizService.submitBatchAnswers(state.currentSession.id, batchAnswers);
+
+      // Update local state to reflect completion
+      dispatch({
+        type: 'COMPLETE_QUIZ',
+        payload: {
+          session: { ...state.currentSession, status: 'completed' },
+          score: {
+            totalQuestions: state.questions.length,
+            correctAnswers: 0, // Will be calculated on results page
+            incorrectAnswers: 0,
+            score: 0,
+            totalTimeSpent: 0,
+            averageTimePerQuestion: 0
+          }
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Error submitting quiz:', error);
+      dispatch({ type: 'SET_SUBMISSION_ERROR', payload: error.message || 'Failed to submit quiz' });
+      throw error;
+    } finally {
+      dispatch({ type: 'SET_SUBMITTING', payload: false });
+    }
+  }, [state.currentSession, state.questions]);
+
   // Get next question with return value indicating if there are more questions
   const nextQuestion = useCallback(async (): Promise<boolean> => {
     try {
@@ -575,6 +639,8 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     isLoading: state.isLoading,
     error: state.error,
     isMarkedForReview: state.isMarkedForReview,
+    isSubmitting: state.isSubmitting,
+    submissionError: state.submissionError,
     quizResults: state.quizResults,
     
     // Functions
@@ -592,6 +658,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     toggleMarkForReview,
     resetQuiz,
     setTimeElapsed,
+    submitQuiz,
   };
 
   return <QuizContext.Provider value={value}>{children}</QuizContext.Provider>;

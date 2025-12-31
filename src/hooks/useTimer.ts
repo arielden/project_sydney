@@ -8,8 +8,9 @@ interface UseTimerOptions {
 }
 
 interface UseTimerReturn {
-  time: number;
-  timeLeft: number;
+  time: number; // Time in seconds (for backward compatibility)
+  timeLeft: number; // Time left in seconds (for backward compatibility)
+  timePrecise: number; // Time in seconds with decisecond precision
   isRunning: boolean;
   isPaused: boolean;
   start: () => void;
@@ -18,6 +19,7 @@ interface UseTimerReturn {
   reset: (newTime?: number) => void;
   stop: () => void;
   formatTime: (seconds?: number) => string;
+  formatTimePrecise: (seconds?: number) => string;
 }
 
 export function useTimer({
@@ -40,13 +42,13 @@ export function useTimer({
     if (!isRunning) {
       setIsRunning(true);
       setIsPaused(false);
-      startTimeRef.current = Date.now() - pausedTimeRef.current;
+      startTimeRef.current = performance.now() - (pausedTimeRef.current * 1000);
       
-      // Main timer interval (updates every second)
+      // Main timer interval (updates every 100ms for decisecond precision)
       intervalRef.current = setInterval(() => {
         if (startTimeRef.current !== null) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-          const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : initialTime + elapsed;
+          const elapsed = (performance.now() - startTimeRef.current) / 1000; // Convert to seconds
+          const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : elapsed;
           setTime(newTime);
           onTick?.(newTime);
           
@@ -60,20 +62,20 @@ export function useTimer({
             }
           }
         }
-      }, 1000);
+      }, 100); // Update every 100ms for smooth decisecond precision
       
       // Sync interval for backend synchronization
       if (syncInterval > 0) {
         syncIntervalRef.current = setInterval(() => {
           if (startTimeRef.current !== null) {
-            const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-            const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : initialTime + elapsed;
+            const elapsed = (performance.now() - startTimeRef.current) / 1000;
+            const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : elapsed;
             onTick?.(newTime);
           }
         }, syncInterval);
       }
     }
-  }, [isRunning, initialTime, onTick, syncInterval]);
+  }, [isRunning, initialTime, onTick, syncInterval, onTimeUp]);
 
   // Pause the timer
   const pause = useCallback(() => {
@@ -81,7 +83,7 @@ export function useTimer({
       setIsPaused(true);
       
       if (startTimeRef.current !== null) {
-        pausedTimeRef.current = Date.now() - startTimeRef.current;
+        pausedTimeRef.current = (performance.now() - startTimeRef.current) / 1000; // Store in seconds
       }
       
       // Clear intervals
@@ -101,27 +103,39 @@ export function useTimer({
   const resume = useCallback(() => {
     if (isRunning && isPaused) {
       setIsPaused(false);
-      startTimeRef.current = Date.now() - pausedTimeRef.current;
+      startTimeRef.current = performance.now() - (pausedTimeRef.current * 1000);
       
       // Restart intervals
       intervalRef.current = setInterval(() => {
         if (startTimeRef.current !== null) {
-          const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-          setTime(initialTime + elapsed);
-          onTick?.(initialTime + elapsed);
+          const elapsed = (performance.now() - startTimeRef.current) / 1000; // Convert to seconds
+          const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : elapsed;
+          setTime(newTime);
+          onTick?.(newTime);
+          
+          // Check if countdown reached zero
+          if (initialTime > 0 && newTime <= 0 && onTimeUp) {
+            onTimeUp();
+            setIsRunning(false);
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
+          }
         }
-      }, 1000);
+      }, 100);
       
       if (syncInterval > 0) {
         syncIntervalRef.current = setInterval(() => {
           if (startTimeRef.current !== null) {
-            const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-            onTick?.(initialTime + elapsed);
+            const elapsed = (performance.now() - startTimeRef.current) / 1000;
+            const newTime = initialTime > 0 ? Math.max(0, initialTime - elapsed) : elapsed;
+            onTick?.(newTime);
           }
         }, syncInterval);
       }
     }
-  }, [isRunning, isPaused, initialTime, onTick, syncInterval]);
+  }, [isRunning, isPaused, initialTime, onTick, syncInterval, onTimeUp]);
 
   // Reset the timer
   const reset = useCallback((newTime = 0) => {
@@ -166,7 +180,7 @@ export function useTimer({
   const formatTime = useCallback((seconds = time) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     
     if (hours > 0) {
       return `${hours.toString().padStart(2, '0')}:${minutes
@@ -176,6 +190,24 @@ export function useTimer({
       return `${minutes.toString().padStart(2, '0')}:${secs
         .toString()
         .padStart(2, '0')}`;
+    }
+  }, [time]);
+
+  // Format time with decisecond precision as MM:SS.D or HH:MM:SS.D
+  const formatTimePrecise = useCallback((seconds = time) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    const decisecs = Math.round((seconds % 1) * 10); // Get tenths of a second
+    
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes
+        .toString()
+        .padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${decisecs}`;
+    } else {
+      return `${minutes.toString().padStart(2, '0')}:${secs
+        .toString()
+        .padStart(2, '0')}.${decisecs}`;
     }
   }, [time]);
 
@@ -211,6 +243,7 @@ export function useTimer({
   return {
     time,
     timeLeft: Math.max(0, initialTime - time), // Calculate time remaining
+    timePrecise: Math.round(time * 10) / 10, // Time with decisecond precision
     isRunning,
     isPaused,
     start,
@@ -219,6 +252,7 @@ export function useTimer({
     reset,
     stop,
     formatTime,
+    formatTimePrecise,
   };
 }
 
@@ -229,15 +263,15 @@ export function useQuestionTimer(onQuestionComplete?: (timeSpent: number) => voi
   const intervalRef = useRef<number | null>(null);
 
   const startQuestionTimer = useCallback(() => {
-    setQuestionStartTime(Date.now());
+    setQuestionStartTime(performance.now());
     setTimeSpent(0);
     
     intervalRef.current = setInterval(() => {
       if (questionStartTime) {
-        const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-        setTimeSpent(elapsed);
+        const elapsed = (performance.now() - questionStartTime) / 1000; // Convert to seconds
+        setTimeSpent(Math.round(elapsed * 10) / 10); // Round to 1 decimal place
       }
-    }, 1000);
+    }, 100); // Update every 100ms for decisecond precision
   }, [questionStartTime]);
 
   const stopQuestionTimer = useCallback(() => {
@@ -247,7 +281,7 @@ export function useQuestionTimer(onQuestionComplete?: (timeSpent: number) => voi
     }
     
     if (questionStartTime) {
-      const finalTimeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+      const finalTimeSpent = Math.round(((performance.now() - questionStartTime) / 1000) * 10) / 10; // Deciseconds
       setTimeSpent(finalTimeSpent);
       onQuestionComplete?.(finalTimeSpent);
       return finalTimeSpent;
@@ -281,10 +315,11 @@ export function useQuestionTimer(onQuestionComplete?: (timeSpent: number) => voi
     resetQuestionTimer,
     formatTime: (seconds = timeSpent) => {
       const minutes = Math.floor(seconds / 60);
-      const secs = seconds % 60;
+      const secs = Math.floor(seconds % 60);
+      const decisecs = Math.round((seconds % 1) * 10);
       return `${minutes.toString().padStart(2, '0')}:${secs
         .toString()
-        .padStart(2, '0')}`;
+        .padStart(2, '0')}.${decisecs}`;
     },
   };
 }

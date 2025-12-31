@@ -1,5 +1,6 @@
 import express, { Response } from 'express';
 import { body, param, validationResult } from 'express-validator';
+import { PoolClient } from 'pg';
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import QuizSessionModel from '../models/QuizSession';
 import QuestionModel from '../models/Question';
@@ -28,6 +29,14 @@ const submitAnswerValidation = [
   body('timeSpent').isInt({ min: 0 }).withMessage('Time spent must be a positive integer')
 ];
 
+const submitBatchAnswersValidation = [
+  param('sessionId').isInt().withMessage('Invalid session ID'),
+  body('answers').isArray().withMessage('Answers must be an array'),
+  body('answers.*.questionId').isInt().withMessage('Invalid question ID'),
+  body('answers.*.userAnswer').notEmpty().withMessage('Answer is required'),
+  body('answers.*.timeSpent').isInt({ min: 0 }).withMessage('Time spent must be a positive integer')
+];
+
 const sessionParamValidation = [
   param('sessionId').isInt().withMessage('Invalid session ID')
 ];
@@ -48,6 +57,7 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
 
     const { sessionType, forceNew } = req.body;
     const userId = req.user?.id;
+    console.log('Starting quiz for user:', userId, 'sessionType:', sessionType);
 
     // If forceNew is true, abandon any existing sessions
     if (forceNew) {
@@ -58,59 +68,25 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
     }
 
     // Create new session
+    console.log('Creating session...');
     const session = await QuizSessionModel.createSession({
       userId: userId!,
       sessionType: sessionType
     });
+    console.log('Session created:', session.id);
 
-    // Generate adaptive first question (starting around default difficulty)
-    const questions = await QuestionModel.getAdaptiveQuestions(
-      DEFAULT_ELO, // Starting rating (medium difficulty)
-      1, // Just one question
-      [] // No previous attempts for first question
-    );
-
-    let firstQuestion = questions[0];
-
-    // Fallback to a random question if adaptive selection returns nothing
-    if (!firstQuestion) {
-      console.log('⚠️ Adaptive selection returned no questions; falling back to random selection');
-      const questionResult = await pool.query(`
-        SELECT id, question_text, options, difficulty_rating, 
-               COALESCE(elo_rating, $1) as elo_rating, 
-               COALESCE(qc.category_id, 0) as category_id, correct_answer, explanation
-        FROM questions q
-        LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
-        ORDER BY RANDOM() LIMIT 1
-      `, [DEFAULT_ELO]);
-      firstQuestion = questionResult.rows[0];
-
-      if (!firstQuestion) {
-        return res.status(500).json(formatErrorResponse('No questions available'));
+    // Return session info
+    res.status(201).json(formatSuccessResponse('Quiz session started successfully', {
+      session: {
+        id: session.id,
+        user_id: session.user_id,
+        session_type: session.session_type,
+        start_time: session.start_time,
+        is_paused: session.is_paused,
+        status: session.status,
+        created_at: session.created_at
       }
-    }
-
-    res.status(201).json(formatSuccessResponse(
-      'Quiz session started successfully',
-      {
-        session: {
-          id: session.id,
-          session_type: session.session_type,
-          status: session.status,
-          start_time: session.start_time,
-          is_paused: session.is_paused,
-          user_id: session.user_id
-        },
-        question: {
-          id: firstQuestion.id,
-          question_text: firstQuestion.question_text,
-          options: firstQuestion.options,
-          difficulty_rating: firstQuestion.difficulty_rating,
-          timeLimit: 120 // 2 minutes default
-        },
-        totalQuestions: sessionType === 'diagnostic' ? 44 : 20
-      }
-    ));
+    }));
 
   } catch (error) {
     console.error('Error starting quiz:', error);
@@ -169,9 +145,9 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
       // Fallback to random selection if adaptive fails
       const attemptedQuestionIds = attempts.map(attempt => attempt.question_id);
       const questionQuery = `
-        SELECT id, question_text, options, difficulty_rating, 
-               COALESCE(elo_rating, $1) as elo_rating, 
-               COALESCE(qc.category_id, 0) as category_id, correct_answer, explanation
+        SELECT q.id, q.question_text, q.options, q.difficulty_rating, 
+               COALESCE(q.elo_rating, $1) as elo_rating, 
+               COALESCE(qc.category_id, 0) as category_id, q.correct_answer, q.explanation
         FROM questions q
         LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
         WHERE q.id NOT IN (${attemptedQuestionIds.map((_, i) => `$${i + 1}`).join(', ') || 'NULL'})
@@ -326,6 +302,128 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
 }
 
 /**
+ * Submit batch answers for a session handler
+ * POST /api/quiz/:sessionId/batch-submit
+ */
+async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response): Promise<any> {
+  try {
+    console.log('🎯 Batch answer submission started:', {
+      sessionId: req.params.sessionId,
+      answerCount: req.body.answers?.length,
+      userId: req.user?.id
+    });
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
+      return res.status(400).json(formatErrorResponse(
+        'Validation errors',
+        errors.array().map(err => err.msg)
+      ));
+    }
+
+    const { sessionId } = req.params;
+    const { answers } = req.body;
+    const userId = req.user?.id;
+
+    if (!sessionId) {
+      return res.status(400).json(formatErrorResponse('Session ID is required'));
+    }
+
+    // Verify session belongs to user
+    const session = await QuizSessionModel.getSession(sessionId);
+
+    if (!session || session.user_id !== userId) {
+      return res.status(404).json(formatErrorResponse('Session not found'));
+    }
+
+    if (session.status !== 'active') {
+      return res.status(400).json(formatErrorResponse('Session is not active'));
+    }
+
+    // Process all answers in a single transaction
+    const client: PoolClient = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const results = [];
+
+      for (const answer of answers) {
+        const { questionId, userAnswer, timeSpent } = answer;
+
+        // Get question details
+        const question = await client.query(`
+          SELECT correct_answer, difficulty_rating,
+                 COALESCE(qc.category_id, 0) as category_id,
+                 elo_rating, times_answered
+          FROM questions q
+          LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+          WHERE q.id = $1
+        `, [questionId]);
+
+        if (question.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json(formatErrorResponse(`Question ${questionId} not found`));
+        }
+
+        const questionData = question.rows[0];
+        const isCorrect = questionData.correct_answer.toLowerCase() === userAnswer.toLowerCase();
+
+        // Check if already answered (within this batch or previously)
+        const existingAttempt = await client.query(`
+          SELECT id FROM question_attempts
+          WHERE session_id = $1 AND question_id = $2
+        `, [sessionId, questionId]);
+
+        if (existingAttempt.rows.length > 0) {
+          // Skip duplicate answers within batch
+          continue;
+        }
+
+        // Record attempt using the existing logic but in batch
+        await QuestionAttemptModel.recordAttempt({
+          sessionId,
+          questionId,
+          userId: userId!,
+          userAnswer,
+          timeSpent,
+          client
+        });
+
+        results.push({
+          questionId,
+          isCorrect,
+          correctAnswer: questionData.correct_answer
+        });
+      }
+
+      await client.query('COMMIT');
+
+      // Complete the quiz session
+      const completedSession = await QuizSessionModel.completeSession(sessionId);
+
+      res.json(formatSuccessResponse('Quiz submitted successfully', {
+        sessionId,
+        completedAt: completedSession.end_time,
+        status: 'completed',
+        results
+      }));
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    console.error('Error submitting batch answers:', error);
+    return res.status(500).json(formatErrorResponse('Failed to submit quiz answers'));
+  }
+}
+
+/**
  * Pause quiz session handler
  * POST /api/quiz/:sessionId/pause
  */
@@ -344,13 +442,27 @@ async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promis
       return res.status(404).json(formatErrorResponse('Session not found'));
     }
 
-    if (session.status !== 'active' || session.is_paused) {
+    if (session.status !== 'active') {
       return res.status(400).json(formatErrorResponse('Session cannot be paused'));
     }
 
     await QuizSessionModel.pauseSession(sessionId);
 
-    res.json(formatSuccessResponse('Session paused successfully'));
+    // Get updated session
+    const updatedSession = await QuizSessionModel.getSession(sessionId);
+
+    res.json(formatSuccessResponse('Session paused successfully', {
+      session: {
+        id: updatedSession!.id,
+        user_id: updatedSession!.user_id,
+        session_type: updatedSession!.session_type,
+        start_time: updatedSession!.start_time,
+        is_paused: updatedSession!.is_paused,
+        pause_time: updatedSession!.pause_time,
+        status: updatedSession!.status,
+        created_at: updatedSession!.created_at
+      }
+    }));
 
   } catch (error) {
     console.error('Error pausing quiz:', error);
@@ -377,13 +489,27 @@ async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promi
       return res.status(404).json(formatErrorResponse('Session not found'));
     }
 
-    if (session.status !== 'active' || !session.is_paused) {
+    if (session.status !== 'paused') {
       return res.status(400).json(formatErrorResponse('Session cannot be resumed'));
     }
 
     await QuizSessionModel.resumeSession(sessionId);
 
-    res.json(formatSuccessResponse('Session resumed successfully'));
+    // Get updated session
+    const updatedSession = await QuizSessionModel.getSession(sessionId);
+
+    res.json(formatSuccessResponse('Session resumed successfully', {
+      session: {
+        id: updatedSession!.id,
+        user_id: updatedSession!.user_id,
+        session_type: updatedSession!.session_type,
+        start_time: updatedSession!.start_time,
+        is_paused: updatedSession!.is_paused,
+        pause_time: updatedSession!.pause_time,
+        status: updatedSession!.status,
+        created_at: updatedSession!.created_at
+      }
+    }));
 
   } catch (error) {
     console.error('Error resuming quiz:', error);
@@ -410,11 +536,20 @@ async function handleCompleteQuiz(req: AuthenticatedRequest, res: Response): Pro
       return res.status(404).json(formatErrorResponse('Session not found'));
     }
 
+    if (session.status === 'completed') {
+      // Already completed - return success for idempotency
+      return res.json(formatSuccessResponse('Quiz already completed', {
+        sessionId,
+        completedAt: session.end_time,
+        status: 'completed'
+      }));
+    }
+
     if (session.status !== 'active') {
       return res.status(400).json(formatErrorResponse('Session is not active'));
     }
 
-    // Complete session
+    // Complete session (includes transaction safety)
     const completedSession = await QuizSessionModel.completeSession(sessionId);
 
     res.json(formatSuccessResponse('Quiz completed successfully', {
@@ -519,7 +654,8 @@ async function handleGetSessionStatus(req: AuthenticatedRequest, res: Response):
         status: session.status,
         isPaused: session.is_paused,
         startTime: session.start_time,
-        endTime: session.end_time
+        endTime: session.end_time,
+        total_time_spent: elapsedTime
       },
       progress: {
         totalQuestions,
@@ -553,6 +689,7 @@ router.get('/:sessionId/next', sessionParamValidation, handleGetNextQuestion);
  * Submit answer for a question
  */
 router.post('/:sessionId/answer', submitAnswerValidation, handleSubmitAnswer);
+router.post('/:sessionId/batch-submit', submitBatchAnswersValidation, handleSubmitBatchAnswers);
 
 /**
  * POST /api/quiz/:sessionId/pause

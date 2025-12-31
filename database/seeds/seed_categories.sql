@@ -9,7 +9,7 @@ INSERT INTO categories (name, description, difficulty_level, display_order, is_a
 -- 1. Percentages
 ('Percentages', 'Percentage calculations, percent change, and percentage-based word problems', 'medium', 1, true),
 
--- 2. Areas and Volumes  
+-- 2. Areas and Volumes
 ('Areas and Volumes', 'Area calculations for 2D shapes and volume calculations for 3D solids', 'medium', 2, true),
 
 -- 3. Trig

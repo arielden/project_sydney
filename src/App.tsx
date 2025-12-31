@@ -23,6 +23,7 @@ import AdminTables from './pages/admin/AdminTables';
 import AdminTableDetail from './pages/admin/AdminTableDetailMUI';
 import AdminRecordForm from './pages/admin/AdminRecordForm';
 import AdminActivityLog from './pages/admin/AdminActivityLog';
+import DatabaseManagement from './pages/admin/DatabaseManagement';
 
 // Component to conditionally render header
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -144,6 +145,11 @@ function App() {
                 <Route path="/admin/activity" element={
                   <AdminRoute>
                     <AdminActivityLog />
+                  </AdminRoute>
+                } />
+                <Route path="/admin/database" element={
+                  <AdminRoute>
+                    <DatabaseManagement />
                   </AdminRoute>
                 } />
               </Routes>

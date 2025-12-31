@@ -26,30 +26,6 @@ const SAT_MATH_CATEGORIES = {
   20: 'Misc: Functions/Single Variable Equations'
 } as const;
 
-// Map old string IDs to numeric IDs for backward compatibility
-const LEGACY_CATEGORY_MAP: Record<string, number> = {
-  'problem-solving-percentages': 1,
-  'geometry-measurement': 2,
-  'advanced-trigonometry': 3,
-  'algebra-quadratic': 4,
-  'geometry-triangles': 5,
-  'advanced-exponential': 6,
-  'geometry-triangles-similar': 7,
-  'geometry-fundamentals': 8,
-  'geometry-circles': 9,
-  'geometry-coordinate': 10,
-  'algebra-polynomial': 11,
-  'algebra-rational': 12,
-  'algebra-exponents': 13,
-  'statistics-central-tendency': 14,
-  'statistics-probability': 15,
-  'algebra-linear': 16,
-  'problem-solving-units': 17,
-  'algebra-functions': 18,
-  'algebra-systems': 19,
-  'algebra-miscellaneous': 20
-};
-
 import { DEFAULT_ELO } from '../config/eloConstants';
 const DEFAULT_ELO_RATING = DEFAULT_ELO;
 
@@ -70,134 +46,16 @@ export interface MicroRating {
 }
 
 class MicroRatingModel {
-  private static categoryColumn: CategoryColumnName | null = null;
-  private static questionCategoryColumn: CategoryColumnName | null = null;
-  private static questionCategoryColumnResolved = false;
-  private static categoryColumnResolved = false;
-  private static subCategoryMetadataResolved = false;
-  private static subCategoryExists: boolean | null = null;
-  private static subCategoryIsNullable: boolean | null = null;
+  // Use hardcoded column names for better performance (schema is stable)
+  private static readonly CATEGORY_COLUMN: CategoryColumnName = 'category_id';
 
-  private static async resolveCategoryColumn(): Promise<CategoryColumnName> {
-    if (this.categoryColumnResolved) {
-      return (this.categoryColumn ?? 'category') as CategoryColumnName;
-    }
-
-    try {
-      const result = await pool.query<{
-        column_name: 'category_id' | 'category';
-      }>(
-        `
-          SELECT column_name
-          FROM information_schema.columns
-          WHERE table_name = 'micro_ratings'
-            AND column_name IN ('category_id', 'category')
-          ORDER BY CASE WHEN column_name = 'category_id' THEN 0 ELSE 1 END
-          LIMIT 1
-        `
-      );
-
-      this.categoryColumn = result.rows[0]?.column_name === 'category_id' ? 'category_id' : 'category';
-    } catch (error) {
-      console.error('Error resolving micro_ratings category column:', error);
-      this.categoryColumn = 'category';
-    }
-
-    this.categoryColumnResolved = true;
-
-    return (this.categoryColumn ?? 'category') as CategoryColumnName;
-  }
-
-  private static async getCategoryColumn(): Promise<CategoryColumnName> {
-    return this.resolveCategoryColumn();
-  }
-
-  private static async resolveQuestionCategoryColumn(): Promise<CategoryColumnName | null> {
-    if (this.questionCategoryColumnResolved) {
-      return this.questionCategoryColumn;
-    }
-
-    try {
-      const result = await pool.query<{
-        column_name: 'category_id' | 'category';
-      }>(
-        `
-          SELECT column_name
-          FROM information_schema.columns
-          WHERE table_name = 'questions'
-            AND column_name IN ('category_id', 'category')
-          ORDER BY CASE WHEN column_name = 'category_id' THEN 0 ELSE 1 END
-          LIMIT 1
-        `
-      );
-
-      if (result.rows.length === 0) {
-        console.warn('Questions table missing category column; micro rating stats will be limited.');
-        this.questionCategoryColumn = null;
-      } else {
-        this.questionCategoryColumn = result.rows[0]?.column_name === 'category_id' ? 'category_id' : 'category';
-      }
-    } catch (error) {
-      console.error('Error resolving questions category column:', error);
-      this.questionCategoryColumn = null;
-    }
-
-    this.questionCategoryColumnResolved = true;
-
-    return this.questionCategoryColumn;
-  }
-
-  private static async getQuestionCategoryColumn(): Promise<CategoryColumnName | null> {
-    return this.resolveQuestionCategoryColumn();
-  }
-
-  private static async resolveSubCategoryMetadata(): Promise<{ exists: boolean; isNullable: boolean }> {
-    if (this.subCategoryMetadataResolved) {
-      return {
-        exists: this.subCategoryExists ?? false,
-        isNullable: this.subCategoryIsNullable ?? true
-      };
-    }
-
-    try {
-      const result = await pool.query<{
-        is_nullable: 'YES' | 'NO';
-      }>(
-        `
-          SELECT is_nullable
-          FROM information_schema.columns
-          WHERE table_name = 'micro_ratings'
-            AND column_name = 'sub_category'
-            AND table_schema = 'public'
-          LIMIT 1
-        `
-      );
-
-      const columnInfo = result.rows[0];
-
-      if (columnInfo) {
-        this.subCategoryExists = true;
-        this.subCategoryIsNullable = columnInfo.is_nullable === 'YES';
-      } else {
-        this.subCategoryExists = false;
-        this.subCategoryIsNullable = true;
-      }
-    } catch (error) {
-      console.error('Error resolving micro_ratings sub_category column:', error);
-      this.subCategoryExists = false;
-      this.subCategoryIsNullable = true;
-    }
-
-    this.subCategoryMetadataResolved = true;
-
-    return {
-      exists: this.subCategoryExists ?? false,
-      isNullable: this.subCategoryIsNullable ?? true
-    };
+  private static getCategoryColumn(): CategoryColumnName {
+    return this.CATEGORY_COLUMN;
   }
 
   private static async getSubCategoryMetadata(): Promise<{ exists: boolean; isNullable: boolean }> {
-    return this.resolveSubCategoryMetadata();
+    // The sub_category column does not exist in the current schema
+    return { exists: false, isNullable: false };
   }
 
   /**
@@ -238,7 +96,7 @@ class MicroRatingModel {
    * Get a specific user's rating for a category
    */
   static async getUserCategoryRating(userId: string, categoryId: string): Promise<number> {
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     const query = `
       SELECT elo_rating 
       FROM micro_ratings 
@@ -271,7 +129,7 @@ class MicroRatingModel {
     client?: any
   ): Promise<void> {
     const poolOrClient = client || pool;
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     
     const updateQuery = `
       UPDATE micro_ratings 
@@ -293,7 +151,7 @@ class MicroRatingModel {
    * Get all category ratings for a user
    */
   static async getUserAllCategoryRatings(userId: string): Promise<any[]> {
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     const { exists: hasSubCategory } = await this.getSubCategoryMetadata();
     const categorySelector = `mr.${categoryColumn}`;
 
@@ -310,6 +168,9 @@ class MicroRatingModel {
         JOIN question_categories qc ON q.id = qc.question_id
         WHERE qa.user_id = $1
         GROUP BY qc.category_id
+      ),
+      category_names AS (
+        SELECT id, name FROM categories
       )
       SELECT 
         ${categorySelector} AS category_id,
@@ -323,9 +184,11 @@ class MicroRatingModel {
           ELSE 0 
         END AS success_rate,
         cs.last_attempt_date,
-        mr.updated_at
+        mr.updated_at,
+        cn.name AS category_name
       FROM micro_ratings mr
       LEFT JOIN category_stats cs ON cs.category_id = ${categorySelector}
+      LEFT JOIN category_names cn ON cn.id = ${categorySelector}
       WHERE mr.user_id = $1
       ORDER BY ${categorySelector}
     `;
@@ -358,7 +221,7 @@ class MicroRatingModel {
             success_rate: Number.isNaN(successRate) ? 0 : successRate,
             last_attempt_date: row.last_attempt_date,
             updated_at: row.updated_at,
-            category_name: SAT_MATH_CATEGORIES[row.category_id as keyof typeof SAT_MATH_CATEGORIES] || row.category_id,
+            category_name: row.category_name || `Category ${row.category_id}`,
             ...(hasSubCategory ? { sub_category: row.sub_category ?? row.category_id } : {})
           };
         });
@@ -385,7 +248,7 @@ class MicroRatingModel {
           success_rate: Number.isNaN(successRate) ? 0 : successRate,
           last_attempt_date: row.last_attempt_date,
           updated_at: row.updated_at,
-          category_name: SAT_MATH_CATEGORIES[row.category_id as keyof typeof SAT_MATH_CATEGORIES] || row.category_id,
+          category_name: row.category_name || `Category ${row.category_id}`,
           ...(hasSubCategory ? { sub_category: row.sub_category ?? row.category_id } : {})
         };
       });
@@ -399,7 +262,7 @@ class MicroRatingModel {
    * Get user's statistics for a specific category
    */
   static async getUserCategoryStats(userId: string, categoryId: string): Promise<any> {
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     
     const query = `
       WITH category_stats AS (
@@ -461,7 +324,7 @@ class MicroRatingModel {
    * Get top performers in a category
    */
   static async getTopPerformersInCategory(categoryId: string, limit: number = 10): Promise<any[]> {
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     
     const query = `
       WITH category_stats AS (
@@ -517,7 +380,7 @@ class MicroRatingModel {
     client?: any
   ): Promise<void> {
     const poolOrClient = client || pool;
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     
     try {
       // Get current micro rating stats for this user and category
@@ -647,7 +510,7 @@ class MicroRatingModel {
     userId: string,
     categoryId: string
   ): Promise<void> {
-    const categoryColumn = await this.getCategoryColumn();
+    const categoryColumn = this.getCategoryColumn();
     
     try {
       await pool.query(`

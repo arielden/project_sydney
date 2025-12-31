@@ -43,13 +43,13 @@ export class ELOCalculator {
   }
 
   /**
-   * Calculate new rating using ELO formula with optional change smoothing
+   * Calculate new rating using ELO formula with rating change caps
    * R' = R + K(S - E)
    * @param currentRating Current ELO rating
    * @param kFactor K-factor for rating volatility
    * @param actualScore Actual score (1 for correct, 0 for incorrect)
    * @param expectedScore Expected score from calculateExpectedScore
-   * @param maxChange Optional maximum rating change per question (default: no limit)
+   * @param maxChange Maximum rating change per question (default: 20 points)
    * @returns New ELO rating (clamped between 200-800)
    */
   static calculateNewRating(
@@ -57,13 +57,13 @@ export class ELOCalculator {
     kFactor: number, 
     actualScore: number, 
     expectedScore: number,
-    maxChange?: number
+    maxChange: number = 20
   ): number {
     const ratingChange = kFactor * (actualScore - expectedScore);
     let newRating = Math.round(currentRating + ratingChange);
     
-    // Apply maximum change smoothing if specified
-    if (maxChange !== undefined && Math.abs(ratingChange) > maxChange) {
+    // Apply maximum change cap to prevent unrealistic jumps
+    if (Math.abs(ratingChange) > maxChange) {
       const sign = ratingChange > 0 ? 1 : -1;
       newRating = Math.round(currentRating + sign * maxChange);
     }
@@ -74,40 +74,20 @@ export class ELOCalculator {
 
   /**
    * Calculate dynamic K-factor for players based on experience
+   * Conservative formula: K = 25 / (1 + games_played / 15)
    * @param gamesPlayed Number of games played
-   * @param smoothing Whether to use smooth transitions between stages (default: true)
-   * @returns K-factor (100 for beginners, decreases with experience)
+   * @returns K-factor (starts at ~25, decreases slowly to ~4.2 with experience)
    */
-  static calculatePlayerKFactor(gamesPlayed: number, smoothing: boolean = true): number {
-    if (gamesPlayed <= 44) return 100;
-    if (gamesPlayed >= 801) return 10;
-
-    if (!smoothing) {
-      // Original staged approach
-      if (gamesPlayed <= 200) return 60;
-      if (gamesPlayed <= 400) return 40;
-      if (gamesPlayed <= 600) return 24;
-      return 16;
-    }
-
-    // Smooth interpolation between stages
-    const stages = [
-      { minQ: 44, maxQ: 200, startK: 100, endK: 60 },
-      { minQ: 200, maxQ: 400, startK: 60, endK: 40 },
-      { minQ: 400, maxQ: 600, startK: 40, endK: 24 },
-      { minQ: 600, maxQ: 800, startK: 24, endK: 16 },
-      { minQ: 800, maxQ: 1000, startK: 16, endK: 10 }
-    ];
-
-    for (const stage of stages) {
-      if (gamesPlayed >= stage.minQ && gamesPlayed <= stage.maxQ) {
-        const progress = (gamesPlayed - stage.minQ) / (stage.maxQ - stage.minQ);
-        const smoothedK = stage.startK + (stage.endK - stage.startK) * progress;
-        return Math.round(smoothedK);
-      }
-    }
-
-    return 10; // Fallback
+  static calculatePlayerKFactor(gamesPlayed: number): number {
+    // Conservative decay formula: K = 25 / (1 + games_played / 15)
+    // Examples:
+    // 0 exams: K ≈ 25
+    // 15 exams: K ≈ 12.5
+    // 30 exams: K ≈ 8.3
+    // 60 exams: K ≈ 5.6
+    // 100+ exams: K ≈ 4.2
+    const kFactor = 25.0 / (1.0 + gamesPlayed / 15.0);
+    return Math.round(kFactor * 100) / 100; // Round to 2 decimal places
   }
 
   /**

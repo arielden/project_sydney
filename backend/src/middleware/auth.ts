@@ -84,7 +84,7 @@ export async function authenticateToken(
  */
 export async function authenticateOptionalToken(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
@@ -122,7 +122,7 @@ export async function authenticateOptionalToken(
  * Middleware to check if user has required role/permissions
  * Note: Currently all users have same permissions, but ready for future expansion
  */
-export function requireRole(roles: string[]) {
+export function requireRole(_roles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       res.status(401).json({

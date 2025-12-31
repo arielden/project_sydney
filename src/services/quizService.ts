@@ -164,6 +164,29 @@ export const quizService = {
   },
 
   /**
+   * Submit all answers for a quiz session at once
+   * @param sessionId - Quiz session identifier
+   * @param answers - Array of answer objects with questionId, userAnswer, timeSpent
+   * @returns Promise<{sessionId: string, completedAt: string, status: string, results: any[]}>
+   */
+  async submitBatchAnswers(sessionId: string, answers: Array<{questionId: number, userAnswer: string, timeSpent: number}>) {
+    try {
+      const response = await api.post(`/quiz/${sessionId}/batch-submit`, {
+        answers
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to submit quiz answers');
+      }
+      
+      return response.data.data;
+    } catch (error: any) {
+      const message = apiHelpers.extractErrorMessage(error);
+      throw new Error(message);
+    }
+  },
+
+  /**
    * Pause a quiz session
    * @param sessionId - Quiz session identifier
    * @returns Promise<void>

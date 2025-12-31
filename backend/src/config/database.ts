@@ -66,7 +66,7 @@ const pool = new Pool(dbConfig);
 export const testConnection = async (): Promise<boolean> => {
   try {
     const client = await pool.connect();
-    const result = await client.query('SELECT NOW()');
+    await client.query('SELECT NOW()');
     client.release();
     console.log('✅ Database connected successfully');
     console.log(`📊 Database: ${dbConfig.database} at ${dbConfig.host}:${dbConfig.port}`);

@@ -56,31 +56,69 @@ app.use('/api/ratings', ratingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/question-types', questionTypesRoutes);
 
-// Health check route
-app.get('/api/health', async (req: Request, res: Response) => {
+// Health check cache to reduce database load
+let healthCheckCache = {
+  status: null as boolean | null,
+  timestamp: 0,
+  ttl: 30000 // 30 seconds cache
+};
+
+// Health check route with caching
+app.get('/api/health', async (_req: Request, res: Response) => {
+  const now = Date.now();
+  
+  // Return cached result if still valid
+  if (healthCheckCache.status !== null && (now - healthCheckCache.timestamp) < healthCheckCache.ttl) {
+    res.status(200).json({
+      status: 'OK',
+      message: 'Sydney Learning Platform API is running (cached)',
+      timestamp: new Date().toISOString(),
+      database: healthCheckCache.status ? 'connected' : 'disconnected',
+      environment: process.env.NODE_ENV || 'development',
+      cached: true
+    });
+    return;
+  }
+  
   try {
     const dbStatus = await testConnection();
+    
+    // Cache the result
+    healthCheckCache = {
+      status: dbStatus,
+      timestamp: now,
+      ttl: 30000
+    };
     
     res.status(200).json({
       status: 'OK',
       message: 'Sydney Learning Platform API is running',
       timestamp: new Date().toISOString(),
       database: dbStatus ? 'connected' : 'disconnected',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      cached: false
     });
   } catch (error) {
+    // Cache failed result for shorter time
+    healthCheckCache = {
+      status: false,
+      timestamp: now,
+      ttl: 5000 // 5 seconds for failed checks
+    };
+    
     res.status(500).json({
       status: 'ERROR',
       message: 'Health check failed',
       timestamp: new Date().toISOString(),
       database: 'disconnected',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      cached: false
     });
   }
 });
 
 // Basic API info route
-app.get('/api', (req: Request, res: Response) => {
+app.get('/api', (_req: Request, res: Response) => {
   res.json({
     name: 'Sydney Learning Platform API',
     version: '1.0.0',
@@ -107,7 +145,7 @@ app.use((req: Request, res: Response) => {
 });
 
 // Global error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error('❌ Error:', err);
   
   res.status(err.status || 500).json({

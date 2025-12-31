@@ -97,6 +97,10 @@ class AdaptiveSelectionService {
         queryParams.push(range[0], range[1]);
       }
 
+      // Build the main query with more efficient sampling
+      // Reduce candidate pool from 50 to 20 for better performance
+      const candidateCount = Math.min(20, Math.max(questionCount * 2, 10));
+      
       const query = `
         SELECT 
           q.id,
@@ -109,12 +113,25 @@ class AdaptiveSelectionService {
           q.elo_rating,
           q.times_answered,
           q.times_correct,
-          q.created_at
+          q.created_at,
+          -- Pre-calculate expected scores in SQL for better performance
+          CASE 
+            WHEN $1 > 0 THEN 1.0 / (1.0 + POWER(10.0, (q.elo_rating - $1) / 400.0))
+            ELSE 0.5
+          END as expected_score,
+          CASE 
+            WHEN $1 > 0 AND q.elo_rating > 0 THEN
+              CASE 
+                WHEN ABS($1 - q.elo_rating) <= 400 THEN 1.0
+                ELSE GREATEST(0.1, 1.0 - ABS($1 - q.elo_rating) / 400.0)
+              END
+            ELSE 0.8
+          END as appropriateness_score
         FROM questions q
         LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
         WHERE ${whereConditions.join(' AND ')}
-        ORDER BY RANDOM()
-        LIMIT 50
+        TABLESAMPLE BERNOULLI(10.0)  -- Sample 10% of matching questions
+        LIMIT ${candidateCount * 2}   -- Get more candidates than needed for better selection
       `;
 
       const result = await pool.query(query, queryParams);
@@ -124,21 +141,16 @@ class AdaptiveSelectionService {
         throw new Error('No suitable questions found');
       }
 
-      // Score each candidate question
+      // Score each candidate question (now with pre-calculated values)
       const scoredQuestions: QuestionWithPrediction[] = candidates.map(question => {
         const questionRating = question.elo_rating || DEFAULT_ELO;
         
         // Get relevant micro rating for this category
         const microRating = microRatingMap[question.category_id] || userRating;
         
-        // Calculate expected score using ELO formula
-        const expectedScore = ELOCalculator.calculateExpectedScore(microRating, questionRating);
-        
-        // Calculate appropriateness (how well-matched the difficulty is)
-        const appropriatenessScore = ELOCalculator.isQuestionAppropriate(
-          microRating, 
-          questionRating
-        ) ? 1.0 : Math.max(0.1, 1.0 - Math.abs(microRating - questionRating) / 400);
+        // Use pre-calculated values from SQL
+        const expectedScore = parseFloat(question.expected_score) || ELOCalculator.calculateExpectedScore(microRating, questionRating);
+        const appropriatenessScore = parseFloat(question.appropriateness_score) || ELOCalculator.isQuestionAppropriate(microRating, questionRating) ? 1.0 : 0.8;
         
         // Calculate micro rating relevance (preference for categories with weights)
         const categoryWeight = categoryWeights[question.category_id] || 1.0;

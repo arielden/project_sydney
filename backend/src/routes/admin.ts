@@ -2,6 +2,8 @@ import express, { Response } from 'express';
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { requireAdmin, logAdminActivity } from '../middleware/adminAuth';
 import adminService from '../services/adminService';
+import databaseManagementService from '../services/databaseManagementService';
+import { uploadSqlFile, handleUploadError } from '../middleware/fileUpload';
 
 const router = express.Router();
 
@@ -13,7 +15,7 @@ router.use(requireAdmin);
  * GET /api/admin/stats
  * Get dashboard statistics
  */
-router.get('/stats', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/stats', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const stats = await adminService.getStats();
     res.json({
@@ -75,7 +77,7 @@ router.get('/system-activity', async (req: AuthenticatedRequest, res: Response):
  * GET /api/admin/tables
  * List all available tables
  */
-router.get('/tables', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/tables', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const tables = await adminService.getTableList();
     res.json({
@@ -368,6 +370,224 @@ router.delete('/tables/:tableName/:id', async (req: AuthenticatedRequest, res: R
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to delete record'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/database/tables
+ * Get list of all database tables
+ */
+router.get('/database/tables', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const tables = await databaseManagementService.getTableList();
+    res.json({
+      success: true,
+      data: tables
+    });
+  } catch (error) {
+    console.error('Error getting database table list:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get database table list'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/database/export-schema
+ * Export current database schema
+ */
+router.get('/database/export-schema', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const schema = await databaseManagementService.exportCurrentSchema();
+    res.setHeader('Content-Type', 'application/sql');
+    res.setHeader('Content-Disposition', 'attachment; filename="schema.sql"');
+    res.send(schema);
+  } catch (error) {
+    console.error('Error exporting schema:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to export schema'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/database/tables-info
+ * Get detailed table information with safety indicators
+ */
+router.get('/database/tables-info', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const tableInfo = await databaseManagementService.getTableInfo();
+    res.json({
+      success: true,
+      data: tableInfo
+    });
+  } catch (error) {
+    console.error('Error getting table info:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get table information'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/database/clear-tables
+ * Clear data from specified tables
+ */
+router.post('/database/clear-tables', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { tableNames, confirmation } = req.body;
+
+    if (!Array.isArray(tableNames) || tableNames.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'tableNames must be a non-empty array'
+      });
+      return;
+    }
+
+    if (confirmation !== 'DELETE') {
+      res.status(400).json({
+        success: false,
+        message: 'Confirmation required: type "DELETE" to proceed'
+      });
+      return;
+    }
+
+    const result = await databaseManagementService.clearTables(tableNames, req.user!.id);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error clearing tables:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear tables'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/database/execute-schema
+ * Execute schema SQL file
+ */
+router.post('/database/execute-schema', uploadSqlFile.single('schemaFile'), handleUploadError, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+      return;
+    }
+
+    const sqlContent = req.file.buffer.toString('utf-8');
+
+    // Validate the file
+    const validation = databaseManagementService.validateSqlFile(sqlContent);
+    if (!validation.valid) {
+      res.status(400).json({
+        success: false,
+        message: 'File validation failed',
+        errors: validation.errors
+      });
+      return;
+    }
+
+    // Check if we should drop tables first
+    const dropTablesFirst = req.body.dropTablesFirst === 'true';
+
+    const result = await databaseManagementService.executeSchemaFile(sqlContent, req.user!.id, dropTablesFirst);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error executing schema:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to execute schema'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/database/load-seeds
+ * Load seed data from SQL file
+ */
+router.post('/database/load-seeds', uploadSqlFile.single('seedFile'), handleUploadError, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+      return;
+    }
+
+    const sqlContent = req.file.buffer.toString('utf-8');
+
+    // Basic validation
+    if (!sqlContent.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'File is empty'
+      });
+      return;
+    }
+
+    const result = await databaseManagementService.loadSeedData(sqlContent, req.user!.id);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error loading seeds:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load seed data'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/database/load-predefined-seed
+ * Load predefined seed data files
+ */
+router.post('/database/load-predefined-seed', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { seedType } = req.body;
+
+    if (!seedType || !['categories', 'questions'].includes(seedType)) {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid seedType. Must be "categories" or "questions"'
+      });
+      return;
+    }
+
+    const result = await databaseManagementService.loadPredefinedSeed(seedType, req.user!.id);
+
+    res.json({
+      success: result.success,
+      message: result.message,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error loading predefined seed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load predefined seed data'
     });
   }
 });

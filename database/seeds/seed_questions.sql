@@ -5,10 +5,10 @@
 -- This file contains sample SAT-style questions for development and testing.
 -- Updated for many-to-many relationships between questions and categories.
 -- Updated to match 18 new categories (December 18, 2025).
--- 
+--
 -- WARNING: This file is for DEVELOPMENT ONLY!
 -- Do NOT use in production. Replace with actual production questions.
--- 
+--
 -- Execution: Run AFTER seed_categories.sql
 -- ============================================================================
 
@@ -17,7 +17,7 @@
 -- ============================================================================
 -- Insert sample questions into the questions table for testing and development
 
-INSERT INTO questions (question_text, options, correct_answer, explanation, elo_rating, is_diagnostic) VALUES 
+INSERT INTO questions (question_text, options, correct_answer, explanation, elo_rating, is_diagnostic) VALUES
 
 -- Easy Level Questions (200-400 range)
 ('If 3x + 5 = 14, what is the value of x?', '[{"id": "A", "text": "2"}, {"id": "B", "text": "3"}, {"id": "C", "text": "4"}, {"id": "D", "text": "5"}]', 'B', 'Solving for x: 3x + 5 = 14, so 3x = 9, therefore x = 3.', 350, true),
@@ -88,177 +88,177 @@ INSERT INTO questions (question_text, options, correct_answer, explanation, elo_
 -- Updated to match 18 new categories (December 18, 2025)
 
 -- Question 1 (Single Variable Equations: If 3x + 5 = 14...) -> Single Variable Equations (ID 18)
-INSERT INTO question_categories (question_id, category_id, is_primary) 
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If 3x + 5 = 14, what is the value of x?' 
+INSERT INTO question_categories (question_id, category_id, is_primary)
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If 3x + 5 = 14, what is the value of x?'
 AND c.name = 'Single Variable Equations' ON CONFLICT DO NOTHING;
 
 -- Question 2 (Percentages: What is 25% of 80?) -> Percentages (ID 1)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is 25% of 80?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is 25% of 80?'
 AND c.name = 'Percentages' ON CONFLICT DO NOTHING;
 
 -- Question 3 (Areas and Volumes) -> Areas and Volumes (ID 2)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is the area of a rectangle with length 8 and width 6?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is the area of a rectangle with length 8 and width 6?'
 AND c.name = 'Areas and Volumes' ON CONFLICT DO NOTHING;
 
 -- Question 4 (Fractions & Exponents) -> Fractions & Exponents (ID 11)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is 2/3 + 1/6?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is 2/3 + 1/6?'
 AND c.name = 'Fractions & Exponents' ON CONFLICT DO NOTHING;
 
 -- Question 5 (Fractions & Exponents: Exponents) -> Fractions & Exponents (ID 11)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is 2³?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is 2³?'
 AND c.name = 'Fractions & Exponents' ON CONFLICT DO NOTHING;
 
 -- Question 6 (Angle Properties: slope) -> Angle Properties (ID 8)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is the slope of the line passing through points (2, 3) and (6, 7)?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is the slope of the line passing through points (2, 3) and (6, 7)?'
 AND c.name = 'Angle Properties' ON CONFLICT DO NOTHING;
 
 -- Question 7 (Quadratic Equations) -> Quadratic Equations (ID 4)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If x² - 5x + 6 = 0, what are the possible values of x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If x² - 5x + 6 = 0, what are the possible values of x?'
 AND c.name = 'Quadratic Equations' ON CONFLICT DO NOTHING;
 
 -- Question 8 (Systems) -> Systems of Equations (ID 17)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If 2x + y = 8 and x - y = 1, what is the value of x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If 2x + y = 8 and x - y = 1, what is the value of x?'
 AND c.name = 'Systems of Equations' ON CONFLICT DO NOTHING;
 
 -- Question 9 (Function Transformations) -> Function Transformations (ID 16)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If f(x) = 2x + 3, what is f(4)?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If f(x) = 2x + 3, what is f(4)?'
 AND c.name = 'Function Transformations' ON CONFLICT DO NOTHING;
 
 -- Question 10 (Circles) -> Circles (ID 9)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is the circumference of a circle with radius 5? (Use π = 3.14)' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is the circumference of a circle with radius 5? (Use π = 3.14)'
 AND c.name = 'Circles' ON CONFLICT DO NOTHING;
 
 -- Question 11 (Linear Equations: Inequalities) -> Linear Equations (ID 14)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Solve for x: 3x - 7 > 8' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Solve for x: 3x - 7 > 8'
 AND c.name = 'Linear Equations' ON CONFLICT DO NOTHING;
 
 -- Question 12 (Probability) -> Probability and Statistics (ID 13)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is the probability of rolling a 4 on a standard six-sided die?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is the probability of rolling a 4 on a standard six-sided die?'
 AND c.name = 'Probability and Statistics' ON CONFLICT DO NOTHING;
 
 -- Question 13 (Percentages: ratio) -> Percentages (ID 1)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If 3/4 = x/12, what is x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If 3/4 = x/12, what is x?'
 AND c.name = 'Percentages' ON CONFLICT DO NOTHING;
 
 -- Question 14 (Absolute value) -> Single Variable Equations (ID 18)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Solve |x - 3| = 5' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Solve |x - 3| = 5'
 AND c.name = 'Single Variable Equations' ON CONFLICT DO NOTHING;
 
 -- Question 15 (Systems: word problem) -> Systems of Equations (ID 17)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Sarah has 3 times as many books as Tom. Together they have 24 books. How many books does Sarah have?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Sarah has 3 times as many books as Tom. Together they have 24 books. How many books does Sarah have?'
 AND c.name = 'Systems of Equations' ON CONFLICT DO NOTHING;
 
 -- Question 16 (Median) -> Means and Medians (ID 12)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'The median of the dataset {2, 5, 7, x, 12} is 7. What is x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'The median of the dataset {2, 5, 7, x, 12} is 7. What is x?'
 AND c.name = 'Means and Medians' ON CONFLICT DO NOTHING;
 
 -- Question 17 (Distance formula) -> Angle Properties (ID 8)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'What is the distance between points (1, 2) and (4, 6)?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'What is the distance between points (1, 2) and (4, 6)?'
 AND c.name = 'Angle Properties' ON CONFLICT DO NOTHING;
 
 -- Question 18 (Percent increase) -> Percentages (ID 1)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'A price increases from $40 to $50. What is the percent increase?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'A price increases from $40 to $50. What is the percent increase?'
 AND c.name = 'Percentages' ON CONFLICT DO NOTHING;
 
 -- Question 19 (Scientific notation) -> Fractions & Exponents (ID 11)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Express 0.00045 in scientific notation' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Express 0.00045 in scientific notation'
 AND c.name = 'Fractions & Exponents' ON CONFLICT DO NOTHING;
 
 -- Question 20 (Composite function) -> Single Variable Equations (ID 18)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If g(x) = x² - 4x + 3 and h(x) = x + 1, what is g(h(2))?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If g(x) = x² - 4x + 3 and h(x) = x + 1, what is g(h(2))?'
 AND c.name = 'Single Variable Equations' ON CONFLICT DO NOTHING;
 
 -- Question 21 (Exponential growth) -> Exponential Equations (ID 6)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'A population doubles every 3 years. If the initial population is 100, what will it be after 9 years?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'A population doubles every 3 years. If the initial population is 100, what will it be after 9 years?'
 AND c.name = 'Exponential Equations' ON CONFLICT DO NOTHING;
 
 -- Question 22 (Pythagorean theorem) -> Similar Triangles (ID 7)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'In a right triangle, one leg is 3 and the hypotenuse is 5. What is the length of the other leg?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'In a right triangle, one leg is 3 and the hypotenuse is 5. What is the length of the other leg?'
 AND c.name = 'Similar Triangles' ON CONFLICT DO NOTHING;
 
 -- Question 23 (Factoring) -> Polynomials (ID 10)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Factor completely: x³ - 8' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Factor completely: x³ - 8'
 AND c.name = 'Polynomials' ON CONFLICT DO NOTHING;
 
 -- Question 24 (Mean) -> Means and Medians (ID 12)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'The mean of 5 numbers is 12. If four of the numbers are 10, 11, 13, and 15, what is the fifth number?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'The mean of 5 numbers is 12. If four of the numbers are 10, 11, 13, and 15, what is the fifth number?'
 AND c.name = 'Means and Medians' ON CONFLICT DO NOTHING;
 
 -- Question 25 (Logarithm/Rates) -> Rates (ID 15)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If log₂(x) = 3, what is x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If log₂(x) = 3, what is x?'
 AND c.name = 'Rates' ON CONFLICT DO NOTHING;
 
 -- Question 26 (Circle: point on circle) -> Circles (ID 9)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'A circle has center (2, 3) and radius 4. Which point lies on the circle?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'A circle has center (2, 3) and radius 4. Which point lies on the circle?'
 AND c.name = 'Circles' ON CONFLICT DO NOTHING;
 
 -- Question 27 (Quadratic: square root) -> Quadratic Equations (ID 4)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'If (x + 2)² = 25, what are all possible values of x?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'If (x + 2)² = 25, what are all possible values of x?'
 AND c.name = 'Quadratic Equations' ON CONFLICT DO NOTHING;
 
 -- Question 28 (Rational expressions) -> Fractions & Exponents (ID 11)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'Simplify: (x² - 4)/(x + 2)' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'Simplify: (x² - 4)/(x + 2)'
 AND c.name = 'Fractions & Exponents' ON CONFLICT DO NOTHING;
 
 -- Question 29 (Arithmetic sequence) -> Function Transformations (ID 16)
 INSERT INTO question_categories (question_id, category_id, is_primary)
-SELECT q.id, c.id, true FROM questions q, categories c 
-WHERE q.question_text = 'In an arithmetic sequence, the first term is 3 and the common difference is 4. What is the 10th term?' 
+SELECT q.id, c.id, true FROM questions q, categories c
+WHERE q.question_text = 'In an arithmetic sequence, the first term is 3 and the common difference is 4. What is the 10th term?'
 AND c.name = 'Function Transformations' ON CONFLICT DO NOTHING;
 
 -- Verify insertion
@@ -269,7 +269,7 @@ SELECT 'Question-Category Relationships Seeded' as status, COUNT(*) as count FRO
 -- End of Development Seed Data
 -- ============================================================================
 -- Sample questions and relationships have been successfully loaded!
--- 
+--
 -- WARNING: This is test data only. Before production deployment:
 -- 1. Remove or disable this seed file
 -- 2. Load production questions from your actual question database

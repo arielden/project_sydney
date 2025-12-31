@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuiz } from '../contexts/QuizContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTimer } from '../hooks/useTimer';
-import { quizService } from '../services/quizService';
 import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { QuestionNavigator } from '../components/quiz';
+import LoadingModal from '../components/common/LoadingModal';
 
 // Memoized Header Component - prevents unnecessary re-renders
 const QuizHeader = memo(({ 
@@ -265,13 +265,16 @@ export default function QuizPage() {
     totalQuestions,
     loading, 
     error,
+    isSubmitting,
+    submissionError,
     loadAllQuestions,
     goToQuestion,
     nextQuestion, 
     pauseQuiz,
     resumeQuiz,
     completeQuiz,
-    exitQuiz
+    exitQuiz,
+    submitQuiz
   } = useQuiz();
   
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -281,13 +284,12 @@ export default function QuizPage() {
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<number>>(new Set());
   const [reviewQuestions, setReviewQuestions] = useState<Set<number>>(new Set());
   const [questionAnswers, setQuestionAnswers] = useState<Map<number, string>>(new Map());
-  const [submittedQuestions, setSubmittedQuestions] = useState<Set<number>>(new Set()); // Track which questions have been submitted to backend
   const [showUnansweredWarning, setShowUnansweredWarning] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
   
   // Per-question time tracking
   const [questionTimes, setQuestionTimes] = useState<Map<number, number>>(new Map());
-  const questionStartTimeRef = useRef<number>(Date.now());
+  const questionStartTimeRef = useRef<number>(performance.now());
   const currentQuestionIndexRef = useRef<number>(0);
   const questionsLoadingRef = useRef<boolean>(false); // Prevent multiple load attempts
   const sessionId = searchParams.get('sessionId');
@@ -309,7 +311,7 @@ export default function QuizPage() {
   // Function to save time spent on current question
   const saveCurrentQuestionTime = useCallback(() => {
     if (questionStartTimeRef.current && !isPaused) {
-      const timeSpentNow = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
+      const timeSpentNow = Math.round((performance.now() - questionStartTimeRef.current) / 1000); // Seconds
       const questionIndex = currentQuestionIndexRef.current;
       
       setQuestionTimes(prev => {
@@ -328,7 +330,7 @@ export default function QuizPage() {
       
       // If we're switching questions, save time for the previous question
       if (currentQuestionIndexRef.current !== newQuestionIndex && questionStartTimeRef.current) {
-        const timeSpentOnPrevious = Math.floor((Date.now() - questionStartTimeRef.current) / 1000);
+        const timeSpentOnPrevious = Math.floor((performance.now() - questionStartTimeRef.current) / 1000);
         const prevIndex = currentQuestionIndexRef.current;
         
         setQuestionTimes(prev => {
@@ -341,7 +343,7 @@ export default function QuizPage() {
       
       // Update current question index and restart timer
       currentQuestionIndexRef.current = newQuestionIndex;
-      questionStartTimeRef.current = Date.now();
+      questionStartTimeRef.current = performance.now();
     }
   }, [questionNumber, currentQuestion]);
 
@@ -368,7 +370,7 @@ export default function QuizPage() {
     // Start the countdown timer when quiz is active
     if (currentSession && !isRunning && !isPaused) {
       start();
-      questionStartTimeRef.current = Date.now();
+      questionStartTimeRef.current = performance.now();
     }
     
     // Set initial loading to false once we have a session and questions
@@ -430,7 +432,7 @@ export default function QuizPage() {
       setMarkedForReview(reviewQuestions.has(nextIndex));
       
       // Reset question timer for new question
-      questionStartTimeRef.current = Date.now();
+      questionStartTimeRef.current = performance.now();
     } else {
       // No more questions locally, try to get from backend (fallback)
       try {
@@ -442,7 +444,7 @@ export default function QuizPage() {
           const savedAnswer = questionAnswers.get(nextQuestionIndex);
           setSelectedAnswer(savedAnswer || '');
           setMarkedForReview(reviewQuestions.has(nextQuestionIndex));
-          questionStartTimeRef.current = Date.now();
+          questionStartTimeRef.current = performance.now();
         }
       } catch (error) {
         console.error('Error getting next question:', error);
@@ -474,7 +476,7 @@ export default function QuizPage() {
       setMarkedForReview(reviewQuestions.has(prevIndex));
       
       // Reset question timer for new question
-      questionStartTimeRef.current = Date.now();
+      questionStartTimeRef.current = performance.now();
     }
   }, [selectedAnswer, questionNumber, currentQuestionIndex, saveCurrentQuestionTime, goToQuestion, questionAnswers, reviewQuestions]);
 
@@ -484,7 +486,7 @@ export default function QuizPage() {
         await resumeQuiz();
         resume();
         // Restart question timer after resume
-        questionStartTimeRef.current = Date.now();
+        questionStartTimeRef.current = performance.now();
       } else {
         // Save question time before pausing
         saveCurrentQuestionTime();
@@ -538,49 +540,20 @@ export default function QuizPage() {
     try {
       // Save current question time before completing
       saveCurrentQuestionTime();
-      
-      // Submit all answers to the backend directly
-      // Mark questions as being submitted to prevent race conditions
-      const quetsToSubmit = Array.from(questionAnswers.entries())
-        .filter(([index]) => !submittedQuestions.has(index));
-      
-      for (const [index, answer] of quetsToSubmit) {
-        try {
-          const question = questions[index];
-          if (question) {
-            const timeSpent = questionTimes.get(index) || 30; // Default to 30 seconds if no time tracked
-            
-            // Mark as submitted immediately to prevent duplicates in race conditions
-            setSubmittedQuestions(prev => new Set(prev).add(index));
-            
-            // Submit directly to quizService to avoid currentQuestion dependency
-            await quizService.submitAnswer(
-              sessionId!,
-              question.id,
-              answer,
-              timeSpent
-            );
-          }
-        } catch (error: any) {
-          console.error(`Error submitting answer for question ${index + 1}:`, error);
-          // If it's "already answered" error, it's fine - just skip it
-          if (error.message?.includes('already answered')) {
-            console.log(`Question ${index + 1} was already submitted, skipping...`);
-          } else {
-            // For other errors, still mark as submitted to avoid retrying
-            throw error;
-          }
-        }
-      }
-      
-      // Complete the quiz session
-      await completeQuiz();
+
+      // Close confirmation modal
+      setShowSubmitConfirmation(false);
+
+      // Submit quiz using context function (shows loading modal immediately)
+      await submitQuiz(questionAnswers, questionTimes);
+
+      // Navigate to results on success
       navigate(`/quiz/results/${sessionId}`);
     } catch (error) {
-      // Error is handled by QuizContext
+      // Error is handled by QuizContext and shown in modal
       console.error('Error submitting quiz:', error);
     }
-  }, [saveCurrentQuestionTime, questionAnswers, questions, submittedQuestions, questionTimes, completeQuiz, navigate, sessionId]);
+  }, [saveCurrentQuestionTime, questionAnswers, questionTimes, submitQuiz, navigate, sessionId]);
 
   const handleCompleteQuiz = useCallback(async () => {
     handleFinishQuiz();
@@ -650,7 +623,7 @@ export default function QuizPage() {
       setMarkedForReview(reviewQuestions.has(index));
       
       // Reset question timer
-      questionStartTimeRef.current = Date.now();
+      questionStartTimeRef.current = performance.now();
       
       // Close the navigator modal
       setIsNavigatorOpen(false);
@@ -913,14 +886,23 @@ export default function QuizPage() {
                   setShowSubmitConfirmation(false);
                   handleSubmitQuiz();
                 }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
               >
-                Submit Quiz
+                {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Loading Modal for Quiz Submission */}
+      <LoadingModal
+        isOpen={isSubmitting}
+        message="Submitting your answers and calculating your score..."
+        error={submissionError}
+        onRetry={() => handleSubmitQuiz()}
+      />
 
       {/* Main Content Area - Memoized to prevent flickering */}
       <main className="flex-1 pt-32 pb-20 overflow-y-auto relative quiz-main">
