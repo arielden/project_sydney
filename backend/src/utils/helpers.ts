@@ -30,8 +30,8 @@ export async function hashPassword(password: string): Promise<string> {
     const saltRounds = 12; // High security for production
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     return hashedPassword;
-  } catch (error: any) {
-    throw new Error(`Failed to hash password: ${error.message}`);
+  } catch (error) {
+    throw new Error(`Failed to hash password: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -45,8 +45,8 @@ export async function comparePassword(password: string, hashedPassword: string):
   try {
     const isMatch = await bcrypt.compare(password, hashedPassword);
     return isMatch;
-  } catch (error: any) {
-    throw new Error(`Failed to compare passwords: ${error.message}`);
+  } catch (error) {
+    throw new Error(`Failed to compare passwords: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -63,9 +63,9 @@ export function generateToken(userId: string, email: string): string {
       email
     };
 
-    return (jwt as any).sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  } catch (error: any) {
-    throw new Error(`Failed to generate token: ${error.message}`);
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] });
+  } catch (error) {
+    throw new Error(`Failed to generate token: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -77,19 +77,22 @@ export function generateToken(userId: string, email: string): string {
  */
 export function verifyToken(token: string): TokenPayload {
   try {
-    const decoded = (jwt as any).verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
     return decoded;
-  } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      throw new Error('Token has expired');
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('Token has expired');
+      }
+      if (error.name === 'JsonWebTokenError') {
+        throw new Error('Invalid token');
+      }
+      if (error.name === 'NotBeforeError') {
+        throw new Error('Token not active');
+      }
+      throw new Error(`Failed to verify token: ${error.message}`);
     }
-    if (error.name === 'JsonWebTokenError') {
-      throw new Error('Invalid token');
-    }
-    if (error.name === 'NotBeforeError') {
-      throw new Error('Token not active');
-    }
-    throw new Error(`Failed to verify token: ${error.message}`);
+    throw new Error('Failed to verify token: Unknown error');
   }
 }
 
@@ -145,7 +148,7 @@ export function validatePassword(password: string): { isValid: boolean; errors: 
     errors.push('Password must contain at least one number');
   }
 
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
 
@@ -230,8 +233,8 @@ export function formatErrorResponse(message: string, errors?: string[]) {
  * @param data - Response data
  * @returns Formatted success response object
  */
-export function formatSuccessResponse(message: string, data?: any) {
-  const response: any = {
+export function formatSuccessResponse(message: string, data?: unknown) {
+  const response: Record<string, unknown> = {
     success: true,
     message
   };
@@ -239,6 +242,6 @@ export function formatSuccessResponse(message: string, data?: any) {
   if (data !== undefined) {
     response.data = data;
   }
-  
+
   return response;
 }

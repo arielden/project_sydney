@@ -36,7 +36,7 @@ if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "
   echo "Schema already initialized, skipping schema.sql"
 else
   echo "Running schema.sql..."
-  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/schema.sql
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/schema.sql
   echo "Database schema initialized successfully!"
 fi
 
@@ -45,6 +45,16 @@ echo "Running seed data..."
 if [ -f /app/database/seeds/seed_categories.sql ]; then
   PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/seeds/seed_categories.sql
   echo "Categories seed data loaded!"
+fi
+
+if [ -f /app/database/seeds/seed_users.sql ]; then
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/seeds/seed_users.sql
+  echo "Users seed data loaded!"
+fi
+
+if [ -f /app/database/seeds/seed_questions.sql ]; then
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f /app/database/seeds/seed_questions.sql
+  echo "Questions seed data loaded!"
 fi
 
 if [ -f /app/database/seeds/seed_development_m2m.sql ]; then

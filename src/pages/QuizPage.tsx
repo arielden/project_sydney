@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuiz } from '../contexts/QuizContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useQuiz } from '../hooks/useQuiz';
+import { useAuth } from '../hooks/useAuth';
 import { useTimer } from '../hooks/useTimer';
 import { Calculator, BookOpen, MoreHorizontal, Bookmark, Pause, Play, Clock, X, ChevronDown, ChevronLeft, ChevronRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { QuestionNavigator } from '../components/quiz';
@@ -33,6 +33,7 @@ const QuizHeader = memo(({
           {sessionType === 'practice' ? 'Practice Session' : 
            sessionType === 'diagnostic' ? 'Diagnostic Test' :
            sessionType === 'timed' ? 'Timed Test' :
+           sessionType === 'quick-test' ? 'Quick Test' :
            'Quiz Session'}
         </h1>
       </div>
@@ -41,7 +42,9 @@ const QuizHeader = memo(({
       <div className="flex-1 text-center">
         <div className="text-xl font-mono font-bold flex items-center justify-center text-white">
           <Clock className="w-5 h-5 mr-2" />
-          {formatTime(timeRemaining)}
+          {(sessionType === 'timed' || sessionType === 'quick-test') ? 
+            formatTime(timeRemaining) : 
+            'No Time Limit'}
         </div>
       </div>
       
@@ -289,15 +292,28 @@ export default function QuizPage() {
   
   // Per-question time tracking
   const [questionTimes, setQuestionTimes] = useState<Map<number, number>>(new Map());
-  const questionStartTimeRef = useRef<number>(performance.now());
+  const questionStartTimeRef = useRef<number>(0);
   const currentQuestionIndexRef = useRef<number>(0);
   const questionsLoadingRef = useRef<boolean>(false); // Prevent multiple load attempts
   const sessionId = searchParams.get('sessionId');
 
-  // Main countdown timer for entire exam (35 minutes = 2100 seconds)
-  // This timer runs continuously regardless of question navigation
-  const { time: timeRemaining, formatTime, isPaused, pause, resume, start, isRunning } = useTimer({
-    initialTime: 2100, // 35 minutes countdown
+  // Main countdown timer for entire exam
+  // Timer duration depends on session type
+  const getInitialTime = (sessionType?: string) => {
+    switch (sessionType) {
+      case 'quick-test':
+        return 180; // 3 minutes
+      case 'timed':
+        return 2100; // 35 minutes
+      case 'practice':
+      case 'diagnostic':
+      default:
+        return 86400; // 24 hours (effectively no timer)
+    }
+  };
+
+  const { time: timeRemaining, formatTime, isPaused, pause, resume, start, reset, isRunning } = useTimer({
+    initialTime: 2100, // Default fallback
     onTick: () => {
       // Timer automatically counts down - no action needed
     },
@@ -307,6 +323,14 @@ export default function QuizPage() {
       completeQuiz();
     }
   });
+
+  // Reset timer when session type is known
+  useEffect(() => {
+    if (currentSession?.session_type && !isRunning) {
+      const correctTime = getInitialTime(currentSession.session_type);
+      reset(correctTime);
+    }
+  }, [currentSession?.session_type, reset, isRunning]);
 
   // Function to save time spent on current question
   const saveCurrentQuestionTime = useCallback(() => {
@@ -367,8 +391,9 @@ export default function QuizPage() {
       });
     }
 
-    // Start the countdown timer when quiz is active
-    if (currentSession && !isRunning && !isPaused) {
+    // Start the countdown timer when quiz is active (only for timed sessions)
+    if (currentSession && !isRunning && !isPaused && 
+        (currentSession.session_type === 'timed' || currentSession.session_type === 'quick-test')) {
       start();
       questionStartTimeRef.current = performance.now();
     }

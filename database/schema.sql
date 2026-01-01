@@ -131,13 +131,14 @@ DROP TABLE IF EXISTS public.quiz_sessions CASCADE;
 CREATE TABLE public.quiz_sessions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    session_type VARCHAR(20) CHECK (session_type IN ('practice', 'diagnostic', 'timed')),
+    session_type VARCHAR(20) CHECK (session_type IN ('practice', 'diagnostic', 'timed', 'quick-test')),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'abandoned')),
     start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     end_time TIMESTAMP WITH TIME ZONE,
     paused_at TIMESTAMP WITH TIME ZONE,
     resumed_at TIMESTAMP WITH TIME ZONE,
     total_time_spent INTEGER DEFAULT 0, -- in seconds
+    total_pause_duration INTEGER DEFAULT 0, -- in seconds
     is_paused BOOLEAN DEFAULT false,
     score_percentage DECIMAL(5,2),
     total_questions INTEGER DEFAULT 0,

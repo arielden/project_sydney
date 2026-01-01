@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { Award, BarChart3, Calendar, Zap, TrendingUp } from 'lucide-react';
 import { eloRatingService } from '../services/eloRatingService';
 import type { UserELORating, MicroRating } from '../services/eloRatingService';
@@ -11,19 +11,34 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [overallRating, setOverallRating] = useState<UserELORating | null>(null);
   const [microRatings, setMicroRatings] = useState<MicroRating[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.id) return;
-    setIsLoading(true);
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+    
     setError(null);
     Promise.allSettled([
       eloRatingService.getOverallRating(),
       eloRatingService.getMicroRatings(),
     ]).then(([overallResult, microResult]) => {
-      if (overallResult.status === 'fulfilled') setOverallRating(overallResult.value);
-      if (microResult.status === 'fulfilled') setMicroRatings(microResult.value);
+      if (overallResult.status === 'fulfilled') {
+        setOverallRating(overallResult.value);
+      } else {
+        console.error('Failed to fetch overall rating:', overallResult.reason);
+        setError('Failed to load some dashboard data. Please try again later.');
+      }
+
+      if (microResult.status === 'fulfilled') {
+        setMicroRatings(microResult.value);
+      } else {
+        console.error('Failed to fetch micro ratings:', microResult.reason);
+        setError('Failed to load some dashboard data. Please try again later.');
+      }
+      
       setIsLoading(false);
     });
   }, [user?.id]);

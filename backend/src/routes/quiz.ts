@@ -18,8 +18,8 @@ router.use(authenticateToken);
 // Validation middleware
 const startQuizValidation = [
   body('sessionType')
-    .isIn(['practice', 'diagnostic', 'timed'])
-    .withMessage('Session type must be practice, diagnostic, or timed')
+    .isIn(['practice', 'diagnostic', 'timed', 'quick-test'])
+    .withMessage('Session type must be practice, diagnostic, timed, or quick-test')
 ];
 
 const submitAnswerValidation = [
@@ -45,14 +45,15 @@ const sessionParamValidation = [
  * Start a new quiz session handler
  * POST /api/quiz/start
  */
-async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json(formatErrorResponse(
+      res.status(400).json(formatErrorResponse(
         'Validation errors',
         errors.array().map(err => err.msg)
       ));
+      return;
     }
 
     const { sessionType, forceNew } = req.body;
@@ -90,7 +91,7 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
 
   } catch (error) {
     console.error('Error starting quiz:', error);
-    return res.status(500).json(formatErrorResponse('Failed to start quiz session'));
+    res.status(500).json(formatErrorResponse('Failed to start quiz session'));
   }
 }
 
@@ -98,37 +99,41 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
  * Get next question for a session handler
  * GET /api/quiz/:sessionId/next
  */
-async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session is not active'));
+      res.status(400).json(formatErrorResponse('Session is not active'));
+      return;
     }
 
     // Get previous attempts
     const attempts = await QuestionAttemptModel.getSessionAttempts(sessionId);
     
-    // Check if session should end (20 questions for practice/timed, 44 for diagnostic)
-    const maxQuestions = session.session_type === 'diagnostic' ? 44 : 20;
+    // Check if session should end (20 questions for practice/timed, 44 for diagnostic, 5 for quick-test)
+    const maxQuestions = session.session_type === 'diagnostic' ? 44 : session.session_type === 'quick-test' ? 5 : 20;
     if (attempts.length >= maxQuestions) {
       // Auto-complete session
       await QuizSessionModel.completeSession(sessionId);
-      return res.status(200).json(formatSuccessResponse(
+      res.status(200).json(formatSuccessResponse(
         'Quiz completed',
         { completed: true }
       ));
+      return;
     }
 
     // Use adaptive question selection based on user performance
@@ -163,10 +168,11 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
     if (!question) {
       // No more suitable questions available, complete session
       await QuizSessionModel.completeSession(sessionId);
-      return res.status(200).json(formatSuccessResponse(
+      res.status(200).json(formatSuccessResponse(
         'No more questions available',
         { completed: true }
       ));
+      return;
     }
 
     // Ensure question has required properties for response
@@ -204,7 +210,8 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
 
   } catch (error) {
     console.error('Error getting next question:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get next question'));
+    res.status(500).json(formatErrorResponse('Failed to get next question'));
+    return;
   }
 }
 
@@ -212,7 +219,7 @@ async function handleGetNextQuestion(req: AuthenticatedRequest, res: Response): 
  * Submit answer for a question handler
  * POST /api/quiz/:sessionId/answer
  */
-async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     console.log('🎯 Answer submission started:', { 
       sessionId: req.params.sessionId, 
@@ -223,10 +230,11 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log('❌ Validation errors:', errors.array());
-      return res.status(400).json(formatErrorResponse(
+      res.status(400).json(formatErrorResponse(
         'Validation errors',
         errors.array().map(err => err.msg)
       ));
+      return;
     }
 
     const { sessionId } = req.params;
@@ -234,32 +242,37 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session is not active'));
+      res.status(400).json(formatErrorResponse('Session is not active'));
+      return;
     }
 
     // Get question details
     const question = await QuestionModel.getQuestionById(questionId);
     
     if (!question) {
-      return res.status(404).json(formatErrorResponse('Question not found'));
+      res.status(404).json(formatErrorResponse('Question not found'));
+      return;
     }
 
     // Check if already answered
     const hasAttempted = await QuestionAttemptModel.hasAttempted(sessionId, questionId);
     
     if (hasAttempted) {
-      return res.status(400).json(formatErrorResponse('Question already answered'));
+      res.status(400).json(formatErrorResponse('Question already answered'));
+      return;
     }
 
     // Evaluate answer
@@ -289,7 +302,8 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
     } catch (err: any) {
       // Handle duplicate submissions gracefully
       if (err.message && err.message.includes('already answered')) {
-        return res.status(400).json(formatErrorResponse('Question already answered', ['This question has already been answered in this session']));
+        res.status(400).json(formatErrorResponse('Question already answered', ['This question has already been answered in this session']));
+        return;
       }
 
       throw err;
@@ -297,7 +311,8 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
 
   } catch (error) {
     console.error('Error submitting answer:', error);
-    return res.status(500).json(formatErrorResponse('Failed to submit answer'));
+    res.status(500).json(formatErrorResponse('Failed to submit answer'));
+    return;
   }
 }
 
@@ -305,7 +320,7 @@ async function handleSubmitAnswer(req: AuthenticatedRequest, res: Response): Pro
  * Submit batch answers for a session handler
  * POST /api/quiz/:sessionId/batch-submit
  */
-async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     console.log('🎯 Batch answer submission started:', {
       sessionId: req.params.sessionId,
@@ -316,10 +331,11 @@ async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log('❌ Validation errors:', errors.array());
-      return res.status(400).json(formatErrorResponse(
+      res.status(400).json(formatErrorResponse(
         'Validation errors',
         errors.array().map(err => err.msg)
       ));
+      return;
     }
 
     const { sessionId } = req.params;
@@ -327,18 +343,21 @@ async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
 
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session is not active'));
+      res.status(400).json(formatErrorResponse('Session is not active'));
+      return;
     }
 
     // Process all answers in a single transaction
@@ -364,7 +383,8 @@ async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response
 
         if (question.rows.length === 0) {
           await client.query('ROLLBACK');
-          return res.status(404).json(formatErrorResponse(`Question ${questionId} not found`));
+          res.status(404).json(formatErrorResponse(`Question ${questionId} not found`));
+          return;
         }
 
         const questionData = question.rows[0];
@@ -419,7 +439,8 @@ async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response
 
   } catch (error) {
     console.error('Error submitting batch answers:', error);
-    return res.status(500).json(formatErrorResponse('Failed to submit quiz answers'));
+    res.status(500).json(formatErrorResponse('Failed to submit quiz answers'));
+    return;
   }
 }
 
@@ -427,23 +448,26 @@ async function handleSubmitBatchAnswers(req: AuthenticatedRequest, res: Response
  * Pause quiz session handler
  * POST /api/quiz/:sessionId/pause
  */
-async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session cannot be paused'));
+      res.status(400).json(formatErrorResponse('Session cannot be paused'));
+      return;
     }
 
     await QuizSessionModel.pauseSession(sessionId);
@@ -458,7 +482,7 @@ async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promis
         session_type: updatedSession!.session_type,
         start_time: updatedSession!.start_time,
         is_paused: updatedSession!.is_paused,
-        pause_time: updatedSession!.pause_time,
+        paused_at: updatedSession!.paused_at,
         status: updatedSession!.status,
         created_at: updatedSession!.created_at
       }
@@ -466,7 +490,8 @@ async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promis
 
   } catch (error) {
     console.error('Error pausing quiz:', error);
-    return res.status(500).json(formatErrorResponse('Failed to pause quiz'));
+    res.status(500).json(formatErrorResponse('Failed to pause quiz'));
+    return;
   }
 }
 
@@ -474,23 +499,26 @@ async function handlePauseQuiz(req: AuthenticatedRequest, res: Response): Promis
  * Resume quiz session handler
  * POST /api/quiz/:sessionId/resume
  */
-async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'paused') {
-      return res.status(400).json(formatErrorResponse('Session cannot be resumed'));
+      res.status(400).json(formatErrorResponse('Session cannot be resumed'));
+      return;
     }
 
     await QuizSessionModel.resumeSession(sessionId);
@@ -505,7 +533,7 @@ async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promi
         session_type: updatedSession!.session_type,
         start_time: updatedSession!.start_time,
         is_paused: updatedSession!.is_paused,
-        pause_time: updatedSession!.pause_time,
+        resumed_at: updatedSession!.resumed_at,
         status: updatedSession!.status,
         created_at: updatedSession!.created_at
       }
@@ -513,7 +541,8 @@ async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promi
 
   } catch (error) {
     console.error('Error resuming quiz:', error);
-    return res.status(500).json(formatErrorResponse('Failed to resume quiz'));
+    res.status(500).json(formatErrorResponse('Failed to resume quiz'));
+    return;
   }
 }
 
@@ -521,32 +550,36 @@ async function handleResumeQuiz(req: AuthenticatedRequest, res: Response): Promi
  * Complete quiz session handler
  * POST /api/quiz/:sessionId/complete
  */
-async function handleCompleteQuiz(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleCompleteQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status === 'completed') {
       // Already completed - return success for idempotency
-      return res.json(formatSuccessResponse('Quiz already completed', {
+      res.json(formatSuccessResponse('Quiz already completed', {
         sessionId,
         completedAt: session.end_time,
         status: 'completed'
       }));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session is not active'));
+      res.status(400).json(formatErrorResponse('Session is not active'));
+      return;
     }
 
     // Complete session (includes transaction safety)
@@ -560,7 +593,8 @@ async function handleCompleteQuiz(req: AuthenticatedRequest, res: Response): Pro
 
   } catch (error) {
     console.error('Error completing quiz:', error);
-    return res.status(500).json(formatErrorResponse('Failed to complete quiz'));
+    res.status(500).json(formatErrorResponse('Failed to complete quiz'));
+    return;
   }
 }
 
@@ -568,19 +602,21 @@ async function handleCompleteQuiz(req: AuthenticatedRequest, res: Response): Pro
  * Abandon quiz session handler
  * POST /api/quiz/:sessionId/abandon
  */
-async function handleAbandonQuiz(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleAbandonQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     // Abandon the session
@@ -590,7 +626,8 @@ async function handleAbandonQuiz(req: AuthenticatedRequest, res: Response): Prom
 
   } catch (error) {
     console.error('Error abandoning quiz:', error);
-    return res.status(500).json(formatErrorResponse('Failed to abandon quiz'));
+    res.status(500).json(formatErrorResponse('Failed to abandon quiz'));
+    return;
   }
 }
 
@@ -598,19 +635,21 @@ async function handleAbandonQuiz(req: AuthenticatedRequest, res: Response): Prom
  * Get quiz results handler
  * GET /api/quiz/:sessionId/results
  */
-async function handleGetQuizResults(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetQuizResults(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     // Get detailed results
@@ -620,7 +659,8 @@ async function handleGetQuizResults(req: AuthenticatedRequest, res: Response): P
 
   } catch (error) {
     console.error('Error getting quiz results:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get quiz results'));
+    res.status(500).json(formatErrorResponse('Failed to get quiz results'));
+    return;
   }
 }
 
@@ -628,23 +668,25 @@ async function handleGetQuizResults(req: AuthenticatedRequest, res: Response): P
  * Get current session status handler
  * GET /api/quiz/:sessionId/status
  */
-async function handleGetSessionStatus(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetSessionStatus(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     // Get current progress
     const attempts = await QuestionAttemptModel.getSessionAttempts(sessionId);
-    const totalQuestions = session.session_type === 'diagnostic' ? 44 : 20;
+    const totalQuestions = session.session_type === 'diagnostic' ? 44 : session.session_type === 'quick-test' ? 5 : 20;
     const elapsedTime = await QuizSessionModel.getSessionElapsedTime(sessionId);
 
     res.json(formatSuccessResponse('Session status retrieved successfully', {
@@ -666,7 +708,8 @@ async function handleGetSessionStatus(req: AuthenticatedRequest, res: Response):
 
   } catch (error) {
     console.error('Error getting session status:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get session status'));
+    res.status(500).json(formatErrorResponse('Failed to get session status'));
+    return;
   }
 }
 
@@ -731,7 +774,7 @@ router.get('/:sessionId/status', sessionParamValidation, handleGetSessionStatus)
  * GET /api/quiz/adaptive/priorities
  * Get category priorities for adaptive learning (temporarily disabled)
  */
-async function handleGetAdaptivePriorities(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetAdaptivePriorities(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const userId = req.user!.id;
     
@@ -743,7 +786,7 @@ async function handleGetAdaptivePriorities(req: AuthenticatedRequest, res: Respo
     }));
   } catch (error) {
     console.error('Error getting adaptive priorities:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get adaptive priorities'));
+    res.status(500).json(formatErrorResponse('Failed to get adaptive priorities'));
   }
 }
 
@@ -751,19 +794,21 @@ async function handleGetAdaptivePriorities(req: AuthenticatedRequest, res: Respo
  * POST /api/quiz/adaptive/question
  * Get adaptive question for specific category (temporarily disabled)
  */
-async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.body;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     // Use adaptive selection to get best question for category
@@ -775,7 +820,8 @@ async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Respons
     );
 
     if (!question) {
-      return res.status(404).json(formatErrorResponse('No suitable questions found'));
+      res.status(404).json(formatErrorResponse('No suitable questions found'));
+      return;
     }
 
     // Add default values
@@ -804,7 +850,8 @@ async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Respons
 
   } catch (error) {
     console.error('Error getting adaptive question:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get adaptive question'));
+    res.status(500).json(formatErrorResponse('Failed to get adaptive question'));
+    return;
   }
 }
 
@@ -812,13 +859,14 @@ async function handleGetAdaptiveQuestion(req: AuthenticatedRequest, res: Respons
  * GET /api/quiz/adaptive/recommendation/:categoryId
  * Get difficulty recommendation for a category (temporarily disabled)
  */
-async function handleGetDifficultyRecommendation(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetDifficultyRecommendation(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { categoryId } = req.params;
     const userId = req.user!.id;
     
     if (!categoryId) {
-      return res.status(400).json(formatErrorResponse('Category ID is required'));
+      res.status(400).json(formatErrorResponse('Category ID is required'));
+      return;
     }
     
     // Get difficulty recommendation using AdaptiveSelectionService
@@ -835,7 +883,7 @@ async function handleGetDifficultyRecommendation(req: AuthenticatedRequest, res:
     
   } catch (error) {
     console.error('Error getting difficulty recommendation:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get difficulty recommendation'));
+    res.status(500).json(formatErrorResponse('Failed to get difficulty recommendation'));
   }
 }
 
@@ -854,39 +902,40 @@ router.get('/adaptive/recommendation/:categoryId', [
  * GET /api/quiz/:sessionId/questions
  * Returns all questions for the session at once for local navigation
  */
-async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): Promise<any> {
+async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { sessionId } = req.params;
     const userId = req.user?.id;
 
     if (!sessionId) {
-      return res.status(400).json(formatErrorResponse('Session ID is required'));
+      res.status(400).json(formatErrorResponse('Session ID is required'));
+      return;
     }
 
     // Verify session belongs to user
     const session = await QuizSessionModel.getSession(sessionId);
     if (!session || session.user_id !== userId) {
-      return res.status(404).json(formatErrorResponse('Session not found'));
+      res.status(404).json(formatErrorResponse('Session not found'));
+      return;
     }
 
     if (session.status !== 'active') {
-      return res.status(400).json(formatErrorResponse('Session is not active'));
+      res.status(400).json(formatErrorResponse('Session is not active'));
+      return;
     }
 
     // Determine total questions based on session type
-    const maxQuestions = session.session_type === 'diagnostic' ? 44 : 20;
+    const maxQuestions = session.session_type === 'diagnostic' ? 44 : session.session_type === 'quick-test' ? 5 : 20;
 
     // Get all questions for this session (randomly selected, not based on adaptive algorithm)
     // This allows for free navigation forward and backward
-    // Use DISTINCT ON to ensure no duplicate questions
     const questionsQuery = `
-      SELECT DISTINCT ON(q.id)
-        q.id, q.question_text, q.options, q.difficulty_rating, 
+      SELECT q.id, q.question_text, q.options, q.difficulty_rating, 
         COALESCE(q.elo_rating, $2) as elo_rating, 
         COALESCE(qc.category_id, 0) as category_id, q.correct_answer, q.explanation
       FROM questions q
       LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
-      ORDER BY q.id, RANDOM() 
+      ORDER BY RANDOM() 
       LIMIT $1
     `;
     
@@ -894,7 +943,8 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
     const questions = questionsResult.rows;
 
     if (questions.length === 0) {
-      return res.status(500).json(formatErrorResponse('No questions available'));
+      res.status(500).json(formatErrorResponse('No questions available'));
+      return;
     }
 
     // Format questions with indices
@@ -919,7 +969,7 @@ async function handleGetAllQuestions(req: AuthenticatedRequest, res: Response): 
 
   } catch (error) {
     console.error('Error getting all questions:', error);
-    return res.status(500).json(formatErrorResponse('Failed to get questions'));
+    res.status(500).json(formatErrorResponse('Failed to get questions'));
   }
 }
 

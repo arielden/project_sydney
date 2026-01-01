@@ -59,33 +59,18 @@ class MicroRatingModel {
   }
 
   /**
-   * Initialize all 22 micro-rating categories for a new user
+   * Initialize all micro-rating categories for a new user
    */
   static async initializeUserMicroRatings(userId: string): Promise<void> {
     try {
-      // Fetch actual category IDs from the database
-      const categoriesResult = await pool.query(
-        `SELECT id FROM categories ORDER BY id`
-      );
-      
-      if (categoriesResult.rows.length === 0) {
-        console.warn('No categories found in database. Skipping micro ratings initialization.');
-        return;
-      }
-      
-      const categoryIds = categoriesResult.rows.map((row: any) => row.id);
-      
+      // Use a single query to initialize all categories for the user
       const insertQuery = `
         INSERT INTO micro_ratings (user_id, category_id, elo_rating)
-        VALUES ($1, $2, $3)
+        SELECT $1, id, $2 FROM categories
         ON CONFLICT (user_id, category_id) DO NOTHING
       `;
 
-      const insertPromises = categoryIds.map(categoryId => {
-        return pool.query(insertQuery, [userId, categoryId, DEFAULT_ELO_RATING]);
-      });
-      
-      await Promise.all(insertPromises);
+      await pool.query(insertQuery, [userId, DEFAULT_ELO_RATING]);
     } catch (error) {
       console.error('Error initializing micro ratings:', error);
       throw new Error('Failed to initialize micro ratings');
@@ -162,11 +147,12 @@ class MicroRatingModel {
           qc.category_id,
           COUNT(*) FILTER (WHERE qa.is_correct) AS correct_count,
           COUNT(*) AS total_attempts,
-          MAX(qa.answered_at) AS last_attempt_date
+          MAX(qa.created_at) AS last_attempt_date
         FROM question_attempts qa
+        JOIN quiz_sessions qs ON qa.session_id = qs.id
         JOIN questions q ON qa.question_id = q.id
         JOIN question_categories qc ON q.id = qc.question_id
-        WHERE qa.user_id = $1
+        WHERE qs.user_id = $1
         GROUP BY qc.category_id
       ),
       category_names AS (
@@ -421,7 +407,7 @@ class MicroRatingModel {
         `;
         const attemptsResult = await poolOrClient.query(attemptsQuery, [userId, categoryId]);
         currentAttempts = parseInt(attemptsResult.rows[0]?.cnt ?? '0', 10) || 0;
-      } catch (err) {
+      } catch {
         currentAttempts = 0;
       }
 
@@ -443,7 +429,7 @@ class MicroRatingModel {
           questionBaseRating = Number(catStats.rows[0].avg_elo) || DEFAULT_ELO_RATING;
           questionTimesRated = parseInt(catStats.rows[0].times_rated ?? '0', 10) || 0;
         }
-      } catch (err) {
+      } catch {
         // fallback to defaults if query fails
         questionBaseRating = DEFAULT_ELO_RATING;
         questionTimesRated = 0;

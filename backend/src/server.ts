@@ -98,7 +98,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
       environment: process.env.NODE_ENV || 'development',
       cached: false
     });
-  } catch (error) {
+  } catch {
     // Cache failed result for shorter time
     healthCheckCache = {
       status: false,

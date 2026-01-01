@@ -9,21 +9,16 @@ const DatabaseManagement: React.FC = () => {
   // Table Management state
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [clearingTables, setClearingTables] = useState(false);
-  const [clearResult, setClearResult] = useState<any>(null);
+  const [_clearResult, setClearResult] = useState<any>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Predefined seed files state
-  const [loadingCategoriesSeed, setLoadingCategoriesSeed] = useState(false);
-  const [loadingQuestionsSeed, setLoadingQuestionsSeed] = useState(false);
-  const [selectedCategoriesFile, setSelectedCategoriesFile] = useState<File | null>(null);
-  const [selectedQuestionsFile, setSelectedQuestionsFile] = useState<File | null>(null);
-  const [categoriesLoadStatus, setCategoriesLoadStatus] = useState<'idle' | 'selected' | 'loading' | 'success' | 'error'>('idle');
-  const [questionsLoadStatus, setQuestionsLoadStatus] = useState<'idle' | 'selected' | 'loading' | 'success' | 'error'>('idle');
-  const [uploadProgress, setUploadProgress] = useState<{ categories: number; questions: number }>({ categories: 0, questions: 0 });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [loadStatus, setLoadStatus] = useState<'idle' | 'selected' | 'loading' | 'success' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  // File input refs
-  const categoriesFileInputRef = useRef<HTMLInputElement>(null);
-  const questionsFileInputRef = useRef<HTMLInputElement>(null);
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Table Management Functions
   const availableTables = [
@@ -77,21 +72,23 @@ const DatabaseManagement: React.FC = () => {
     }
   };
 
-  // Predefined Seed Loading Functions
-  const loadCategoriesSeed = async () => {
-    if (!selectedCategoriesFile) {
-      setMessage({ type: 'error', text: 'Please select a categories seed file first' });
+  // Seed Loading Function
+  const loadSeedFile = async () => {
+    if (!selectedFile) {
+      setMessage({ type: 'error', text: 'Please select a seed file first' });
       return;
     }
 
-    setLoadingCategoriesSeed(true);
-    setCategoriesLoadStatus('loading');
-    setUploadProgress(prev => ({ ...prev, categories: 0 }));
+    setLoadStatus('loading');
+    setUploadProgress(0);
     setMessage(null);
+
+    const startTime = Date.now();
+    const minDuration = 2000; // 2 seconds minimum
 
     try {
       const formData = new FormData();
-      formData.append('seedFile', selectedCategoriesFile);
+      formData.append('seedFile', selectedFile);
 
       const response = await api.post('/admin/database/load-seeds', formData, {
         headers: {
@@ -99,128 +96,81 @@ const DatabaseManagement: React.FC = () => {
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          setUploadProgress(prev => ({ ...prev, categories: percentCompleted }));
+          setUploadProgress(percentCompleted);
         },
       });
 
-      setCategoriesLoadStatus('success');
+      // Ensure minimum loading time for better UX
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, minDuration - elapsedTime);
+
+      if (remainingTime > 0) {
+        // Animate progress to 100% smoothly
+        const animationSteps = 20;
+        const stepDuration = remainingTime / animationSteps;
+
+        for (let i = 0; i <= animationSteps; i++) {
+          setTimeout(() => {
+            const progress = Math.min(100, 80 + (i / animationSteps) * 20); // Go from current progress to 100%
+            setUploadProgress(progress);
+          }, i * stepDuration);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+
+      setLoadStatus('success');
       setMessage({
         type: 'success',
-        text: `Categories seed loaded successfully! ${response.data.data?.insertedRows ? Object.values(response.data.data.insertedRows).reduce((a: number, b: number) => a + b, 0) : 0} rows inserted.`
+        text: `Seed file loaded successfully! ${(Object.values(response.data.data.insertedRows) as number[]).reduce((a: number, b: number) => a + b, 0)} rows inserted.`
       });
 
       // Clear the selected file after successful upload
       setTimeout(() => {
-        setSelectedCategoriesFile(null);
-        setCategoriesLoadStatus('idle');
-        if (categoriesFileInputRef.current) {
-          categoriesFileInputRef.current.value = '';
+        setSelectedFile(null);
+        setLoadStatus('idle');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
         }
       }, 3000); // Show success state for 3 seconds
 
     } catch (error: any) {
-      setCategoriesLoadStatus('error');
+      // Ensure minimum loading time even for errors
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, minDuration - elapsedTime);
+
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+
+      setLoadStatus('error');
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to load categories seed'
+        text: error.response?.data?.message || 'Failed to load seed file'
       });
-    } finally {
-      setLoadingCategoriesSeed(false);
     }
   };
 
-  const loadQuestionsSeed = async () => {
-    if (!selectedQuestionsFile) {
-      setMessage({ type: 'error', text: 'Please select a questions seed file first' });
-      return;
-    }
-
-    setLoadingQuestionsSeed(true);
-    setQuestionsLoadStatus('loading');
-    setUploadProgress(prev => ({ ...prev, questions: 0 }));
-    setMessage(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('seedFile', selectedQuestionsFile);
-
-      const response = await api.post('/admin/database/load-seeds', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          setUploadProgress(prev => ({ ...prev, questions: percentCompleted }));
-        },
-      });
-
-      setQuestionsLoadStatus('success');
-      setMessage({
-        type: 'success',
-        text: `Questions seed loaded successfully! ${response.data.data?.insertedRows ? Object.values(response.data.data.insertedRows).reduce((a: number, b: number) => a + b, 0) : 0} rows inserted.`
-      });
-
-      // Clear the selected file after successful upload
-      setTimeout(() => {
-        setSelectedQuestionsFile(null);
-        setQuestionsLoadStatus('idle');
-        if (questionsFileInputRef.current) {
-          questionsFileInputRef.current.value = '';
-        }
-      }, 3000); // Show success state for 3 seconds
-
-    } catch (error: any) {
-      setQuestionsLoadStatus('error');
-      setMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to load questions seed'
-      });
-    } finally {
-      setLoadingQuestionsSeed(false);
-    }
-  };
-
-  // File selection handlers
-  const handleCategoriesFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File selection handler
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.name.endsWith('.sql')) {
         setMessage({ type: 'error', text: 'Please select a .sql file' });
         return;
       }
-      setSelectedCategoriesFile(file);
-      setCategoriesLoadStatus('selected');
+      setSelectedFile(file);
+      setLoadStatus('selected');
       setMessage(null);
     }
   };
 
-  const handleQuestionsFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (!file.name.endsWith('.sql')) {
-        setMessage({ type: 'error', text: 'Please select a .sql file' });
-        return;
-      }
-      setSelectedQuestionsFile(file);
-      setQuestionsLoadStatus('selected');
-      setMessage(null);
-    }
-  };
-
-  // Button click handlers
-  const handleCategoriesButtonClick = () => {
-    if (selectedCategoriesFile && categoriesLoadStatus === 'selected') {
-      loadCategoriesSeed();
+  // Button click handler
+  const handleButtonClick = () => {
+    if (selectedFile && loadStatus === 'selected') {
+      loadSeedFile();
     } else {
-      categoriesFileInputRef.current?.click();
-    }
-  };
-
-  const handleQuestionsButtonClick = () => {
-    if (selectedQuestionsFile && questionsLoadStatus === 'selected') {
-      loadQuestionsSeed();
-    } else {
-      questionsFileInputRef.current?.click();
+      fileInputRef.current?.click();
     }
   };
 
@@ -329,172 +279,103 @@ const DatabaseManagement: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Categories Seed */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Database className="text-blue-600" size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Categories</h3>
-                    <p className="text-sm text-gray-600">Upload categories seed file</p>
-                  </div>
+            {/* Seed Data Upload */}
+            <div className="border border-gray-200 rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Database className="text-purple-600" size={24} />
                 </div>
-
-                {/* Hidden file input */}
-                <input
-                  ref={categoriesFileInputRef}
-                  type="file"
-                  accept=".sql"
-                  onChange={handleCategoriesFileSelect}
-                  className="hidden"
-                />
-
-                {/* Fixed Status Bar */}
-                <div className="h-8 mb-4 flex items-center">
-                  {categoriesLoadStatus === 'idle' && (
-                    <span className="text-sm text-gray-500">No file selected</span>
-                  )}
-                  {categoriesLoadStatus === 'selected' && selectedCategoriesFile && (
-                    <span className="text-sm text-blue-700 flex items-center gap-2">
-                      📄 {selectedCategoriesFile.name}
-                    </span>
-                  )}
-                  {categoriesLoadStatus === 'loading' && (
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-                      Uploading...
-                    </span>
-                  )}
-                  {categoriesLoadStatus === 'success' && (
-                    <span className="text-sm text-green-700 flex items-center gap-2">
-                      ✅ Successfully loaded
-                    </span>
-                  )}
-                  {categoriesLoadStatus === 'error' && (
-                    <span className="text-sm text-red-700 flex items-center gap-2">
-                      ❌ Upload failed
-                    </span>
-                  )}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Seed Data Upload</h3>
+                  <p className="text-sm text-gray-600">Upload any .sql seed file (users, categories, questions, relationships, etc.)</p>
                 </div>
-
-                {/* Progress Bar */}
-                {categoriesLoadStatus === 'loading' && (
-                  <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress.categories}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1 text-center">
-                      {uploadProgress.categories}%
-                    </div>
-                  </div>
-                )}
-
-                {/* Single Action Button */}
-                <button
-                  onClick={handleCategoriesButtonClick}
-                  disabled={loadingCategoriesSeed}
-                  className={`w-full px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
-                    selectedCategoriesFile && categoriesLoadStatus === 'selected'
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {selectedCategoriesFile && categoriesLoadStatus === 'selected' ? 'Load File' : 'Browse...'}
-                </button>
               </div>
 
-              {/* Questions Seed */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <Sprout className="text-green-600" size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Questions & Users</h3>
-                    <p className="text-sm text-gray-600">Upload questions seed file</p>
-                  </div>
-                </div>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".sql"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
 
-                {/* Hidden file input */}
-                <input
-                  ref={questionsFileInputRef}
-                  type="file"
-                  accept=".sql"
-                  onChange={handleQuestionsFileSelect}
-                  className="hidden"
-                />
-
-                {/* Fixed Status Bar */}
-                <div className="h-8 mb-4 flex items-center">
-                  {questionsLoadStatus === 'idle' && (
-                    <span className="text-sm text-gray-500">No file selected</span>
-                  )}
-                  {questionsLoadStatus === 'selected' && selectedQuestionsFile && (
-                    <span className="text-sm text-green-700 flex items-center gap-2">
-                      📄 {selectedQuestionsFile.name}
-                    </span>
-                  )}
-                  {questionsLoadStatus === 'loading' && (
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-                      Uploading...
-                    </span>
-                  )}
-                  {questionsLoadStatus === 'success' && (
-                    <span className="text-sm text-green-700 flex items-center gap-2">
-                      ✅ Successfully loaded
-                    </span>
-                  )}
-                  {questionsLoadStatus === 'error' && (
-                    <span className="text-sm text-red-700 flex items-center gap-2">
-                      ❌ Upload failed
-                    </span>
-                  )}
-                </div>
-
-                {/* Progress Bar */}
-                {questionsLoadStatus === 'loading' && (
-                  <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress.questions}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1 text-center">
-                      {uploadProgress.questions}%
-                    </div>
-                  </div>
+              {/* Status Bar */}
+              <div className="h-8 mb-4 flex items-center">
+                {loadStatus === 'idle' && (
+                  <span className="text-sm text-gray-500">No file selected</span>
                 )}
-
-                {/* Single Action Button */}
-                <button
-                  onClick={handleQuestionsButtonClick}
-                  disabled={loadingQuestionsSeed}
-                  className={`w-full px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
-                    selectedQuestionsFile && questionsLoadStatus === 'selected'
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {selectedQuestionsFile && questionsLoadStatus === 'selected' ? 'Load File' : 'Browse...'}
-                </button>
+                {loadStatus === 'selected' && selectedFile && (
+                  <span className="text-sm text-purple-700 flex items-center gap-2">
+                    📄 {selectedFile.name}
+                  </span>
+                )}
+                {loadStatus === 'loading' && (
+                  <span className="text-sm text-orange-700 flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                    Uploading...
+                  </span>
+                )}
+                {loadStatus === 'success' && (
+                  <span className="text-sm text-green-700 flex items-center gap-2">
+                    ✅ Successfully loaded
+                  </span>
+                )}
+                {loadStatus === 'error' && (
+                  <span className="text-sm text-red-700 flex items-center gap-2">
+                    ❌ Upload failed
+                  </span>
+                )}
               </div>
+
+              {/* Progress Bar */}
+              {loadStatus === 'loading' && (
+                <div className="mb-6">
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2 text-center">
+                    {uploadProgress < 100 ? `${uploadProgress}% uploaded` : 'Processing...'}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Button */}
+              <button
+                onClick={handleButtonClick}
+                disabled={loadStatus === 'loading'}
+                className={`w-full px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                  selectedFile && loadStatus === 'selected'
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {selectedFile && loadStatus === 'selected' ? (
+                  <>
+                    <Sprout size={18} />
+                    Load Seed File
+                  </>
+                ) : (
+                  <>
+                    <Database size={18} />
+                    Browse SQL File...
+                  </>
+                )}
+              </button>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">File Upload Instructions</h4>
               <div className="space-y-2 text-sm text-blue-800">
-                <p>• Click <strong>"Browse..."</strong> to select a <code>.sql</code> file</p>
-                <p>• Button changes to <strong>"Load File"</strong> after selection</p>
+                <p>• Click <strong>"Browse SQL File..."</strong> to select any <code>.sql</code> seed file</p>
+                <p>• Button changes to <strong>"Load Seed File"</strong> after selection</p>
                 <p>• Progress bar shows upload status during loading</p>
                 <p>• Success confirmation shows number of rows inserted</p>
-                <p>• Use the predefined seed files from the <code>database/seeds/</code> directory</p>
+                <p>• Supports any seed file: users, categories, questions, question_categories, etc.</p>
+                <p>• Use files from the <code>database/seeds/</code> directory</p>
               </div>
             </div>
           </div>

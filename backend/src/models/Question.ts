@@ -118,11 +118,11 @@ class QuestionModel {
     const samplePercentage = Math.min((sampleSize / totalQuestions) * 100, 100);
     
     let query = `
-      SELECT * FROM questions 
+      SELECT * FROM questions TABLESAMPLE BERNOULLI($1)
       WHERE 1=1
     `;
-    const queryParams: any[] = [];
-    let paramIndex = 1;
+    const queryParams: any[] = [samplePercentage];
+    let paramIndex = 2;
     
     // Apply filters
     if (questionTypes && questionTypes.length > 0) {
@@ -166,11 +166,6 @@ class QuestionModel {
       queryParams.push(isDiagnostic);
       paramIndex++;
     }
-    
-    // Use TABLESAMPLE BERNOULLI for efficient random sampling
-    query += ` TABLESAMPLE BERNOULLI($${paramIndex})`;
-    queryParams.push(samplePercentage);
-    paramIndex++;
     
     // Limit to desired count
     query += ` LIMIT $${paramIndex}`;

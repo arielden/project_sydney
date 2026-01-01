@@ -5,7 +5,7 @@ import api, { apiHelpers } from './api';
  */
 export interface QuizSession {
   id: string;
-  session_type: 'practice' | 'diagnostic' | 'timed';
+  session_type: 'practice' | 'diagnostic' | 'timed' | 'quick-test';
   status: 'active' | 'completed' | 'abandoned';
   start_time: string;
   end_time?: string;
@@ -81,7 +81,7 @@ export const quizService = {
    * @param forceNew - Whether to abandon existing sessions
    * @returns Promise<{session: QuizSession, question: QuizQuestion, totalQuestions: number}>
    */
-  async startQuizSession(sessionType: 'practice' | 'diagnostic' | 'timed', forceNew: boolean = true) {
+  async startQuizSession(sessionType: 'practice' | 'diagnostic' | 'timed' | 'quick-test', forceNew: boolean = true) {
     try {
       const response = await api.post('/quiz/start', { sessionType, forceNew });
       

@@ -71,6 +71,10 @@ export interface Question {
   options: Array<{ id: string; text: string }>;
   question_type: string;
   difficulty_rating: number;
+  elo_rating?: number;
+  category_id?: string;
+  expected_score?: number;
+  appropriateness_score?: number;
   correct_answer: string;
   explanation?: string;
   questionNumber?: number;
@@ -79,7 +83,7 @@ export interface Question {
 
 export interface QuizSession {
   id: string;
-  session_type: 'practice' | 'diagnostic' | 'timed';
+  session_type: 'practice' | 'diagnostic' | 'timed' | 'quick-test';
   status: 'active' | 'completed' | 'abandoned';
   start_time: string;
   end_time?: string;
@@ -94,6 +98,15 @@ export interface QuizAnswer {
   isCorrect?: boolean;
   timeSpent: number;
   questionNumber: number;
+}
+
+export interface QuizScore {
+  totalQuestions: number;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  score: number;
+  totalTimeSpent: number;
+  averageTimePerQuestion: number;
 }
 
 export interface QuizProgress {

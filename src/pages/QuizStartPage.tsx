@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuiz } from '../contexts/QuizContext';
-import { ArrowRight, Clock, Target, BookOpen } from 'lucide-react';
+import { useQuiz } from '../hooks/useQuiz';
+import { ArrowRight, Clock, Target, BookOpen, Zap } from 'lucide-react';
 
 const QuizStartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,9 +27,16 @@ const QuizStartPage: React.FC = () => {
     { 
       id: 'timed', 
       name: 'Timed Test', 
-      description: '20 questions under time pressure',
+      description: '20 questions',
       icon: Clock,
-      features: ['Time pressure', 'Test conditions', 'Performance tracking']
+      features: ['Timed', 'Test conditions', 'Performance tracking']
+    },
+    { 
+      id: 'quick-test', 
+      name: 'Quick Test', 
+      description: '5 questions in 3 minutes',
+      icon: Zap,
+      features: ['5 adaptive questions', '3-minute time limit', 'Quick assessment']
     }
   ];
 
@@ -65,7 +72,7 @@ const QuizStartPage: React.FC = () => {
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-semibold text-navy-dark mb-6">Choose Session Type</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {questionTypes.map((type) => {
                     const IconComponent = type.icon;
                     return (

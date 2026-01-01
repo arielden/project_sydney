@@ -1,57 +1,6 @@
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import React, { createContext, useReducer, useCallback } from 'react';
 import { quizService } from '../services/quizService';
-
-// Types
-export interface Question {
-  id: string;
-  question_text: string;
-  options: Array<{ id: string; text: string }>;
-  question_type: string;
-  difficulty_rating: number;
-  elo_rating?: number;
-  category_id?: string;
-  expected_score?: number;
-  appropriateness_score?: number;
-  correct_answer: string;
-  explanation?: string;
-  questionNumber?: number;
-  totalQuestions?: number;
-}
-
-export interface QuizSession {
-  id: string;
-  session_type: 'practice' | 'diagnostic' | 'timed';
-  status: 'active' | 'completed' | 'abandoned';
-  start_time: string;
-  end_time?: string;
-  is_paused: boolean;
-  total_pause_duration: number;
-  user_id: string;
-}
-
-export interface QuizAnswer {
-  questionId: string;
-  userAnswer: string;
-  isCorrect?: boolean;
-  timeSpent: number;
-  questionNumber: number;
-}
-
-export interface QuizProgress {
-  currentQuestion: number;
-  totalQuestions: number;
-  answeredQuestions: number;
-  elapsedTime: number;
-}
-
-export interface QuizScore {
-  totalQuestions: number;
-  correctAnswers: number;
-  incorrectAnswers: number;
-  score: number;
-  totalTimeSpent: number;
-  averageTimePerQuestion: number;
-}
+import type { Question, QuizSession, QuizAnswer, QuizScore } from '../types';
 
 interface QuizState {
   // Session data
@@ -254,7 +203,7 @@ function quizReducer(state: QuizState, action: QuizAction): QuizState {
 }
 
 // Context
-interface QuizContextType {
+export interface QuizContextType {
   // State
   currentSession: QuizSession | null;
   currentQuestion: Question | null;
@@ -291,7 +240,7 @@ interface QuizContextType {
   submitQuiz: (answers: Map<number, string>, questionTimes: Map<number, number>) => Promise<void>;
 }
 
-const QuizContext = createContext<QuizContextType | undefined>(undefined);
+export const QuizContext = createContext<QuizContextType | undefined>(undefined);
 
 // Provider
 export function QuizProvider({ children }: { children: React.ReactNode }) {
@@ -662,15 +611,6 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <QuizContext.Provider value={value}>{children}</QuizContext.Provider>;
-}
-
-// Hook to use quiz context
-export function useQuiz(): QuizContextType {
-  const context = useContext(QuizContext);
-  if (context === undefined) {
-    throw new Error('useQuiz must be used within a QuizProvider');
-  }
-  return context;
 }
 
 export default QuizContext;

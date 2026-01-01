@@ -13,15 +13,15 @@ export interface QuestionAttempt {
   id: string;
   session_id: string;
   question_id: string;
-  user_id: string;
   user_answer: string;
   is_correct: boolean;
   time_spent: number; // seconds
-  player_rating_before: number;
-  player_rating_after: number;
-  question_rating_before: number;
-  question_rating_after: number;
-  answered_at: Date;
+  player_elo_before: number;
+  player_elo_after: number;
+  question_elo_before: number;
+  question_elo_after: number;
+  elo_change: number;
+  created_at: Date;
 }
 
 export interface CreateAttemptData {
@@ -173,20 +173,20 @@ class QuestionAttemptModel {
       // Insert ELO-calculated attempt record
       const attemptQuery = `
         INSERT INTO question_attempts (
-          session_id, question_id, user_id, user_answer, is_correct, time_spent,
-          player_rating_before, player_rating_after, 
-          question_rating_before, question_rating_after,
-          expected_score, elo_change
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          session_id, question_id, user_answer, is_correct, time_spent,
+          player_elo_before, player_elo_after, 
+          question_elo_before, question_elo_after,
+          elo_change
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (session_id, question_id) DO NOTHING
         RETURNING *
       `;
       
       const attemptResult = await client.query(attemptQuery, [
-        sessionId, questionId, userId, userAnswer, isCorrect, timeSpent,
+        sessionId, questionId, userAnswer, isCorrect, timeSpent,
         playerRatingBefore, eloResult.playerNewRating, 
         questionRatingBefore, eloResult.questionNewRating,
-        eloResult.expectedScore, eloResult.playerEloChange
+        eloResult.playerEloChange
       ]);
 
       // If insert was skipped due to conflict, the question was already answered in this session
@@ -230,11 +230,10 @@ class QuestionAttemptModel {
         UPDATE questions SET 
           elo_rating = $1,
           times_answered = times_answered + 1, 
-          times_correct = times_correct + $2, 
-          k_factor = $3,
+          times_correct = times_correct + $2,
           updated_at = NOW() 
-        WHERE id = $4
-      `, [eloResult.questionNewRating, isCorrect ? 1 : 0, eloResult.questionNewKFactor, questionId]);
+        WHERE id = $3
+      `, [eloResult.questionNewRating, isCorrect ? 1 : 0, questionId]);
       
       await client.query('COMMIT');
       console.log('✅ Attempt recorded successfully');
@@ -323,7 +322,7 @@ class QuestionAttemptModel {
       FROM question_attempts qa
       JOIN questions q ON qa.question_id = q.id
       WHERE qa.session_id = $1
-      ORDER BY qa.answered_at ASC
+      ORDER BY qa.created_at ASC
     `;
     
     try {
@@ -388,8 +387,8 @@ class QuestionAttemptModel {
       SELECT qa.*, qs.session_type
       FROM question_attempts qa
       JOIN quiz_sessions qs ON qa.session_id = qs.id
-      WHERE qa.user_id = $1 AND qa.question_id = $2
-      ORDER BY qa.answered_at DESC
+      WHERE qs.user_id = $1 AND qa.question_id = $2
+      ORDER BY qa.created_at DESC
     `;
     
     try {
@@ -407,7 +406,6 @@ class QuestionAttemptModel {
   static async getUserPerformanceByType(userId: string): Promise<any[]> {
     const query = `
       SELECT 
-        q.question_type,
         COALESCE(qc.category_id, 0) as category_id,
         COUNT(*) as total_attempts,
         SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END) as correct_attempts,
@@ -416,14 +414,15 @@ class QuestionAttemptModel {
           2
         ) as accuracy_percentage,
         AVG(qa.time_spent) as avg_time_spent,
-        AVG(qa.player_rating_before) as avg_player_rating,
-        AVG(qa.question_rating_before) as avg_question_difficulty,
-        AVG(qa.player_rating_after - qa.player_rating_before) as avg_rating_change
+        AVG(qa.player_elo_before) as avg_player_elo,
+        AVG(qa.question_elo_before) as avg_question_elo,
+        AVG(qa.player_elo_after - qa.player_elo_before) as avg_rating_change
       FROM question_attempts qa
+      JOIN quiz_sessions qs ON qa.session_id = qs.id
       JOIN questions q ON qa.question_id = q.id
       LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
-      WHERE qa.user_id = $1
-      GROUP BY q.question_type, COALESCE(qc.category_id, 0)
+      WHERE qs.user_id = $1
+      GROUP BY COALESCE(qc.category_id, 0)
       ORDER BY accuracy_percentage DESC
     `;
     
@@ -452,17 +451,18 @@ class QuestionAttemptModel {
   static async getUserELOProgression(userId: string, limit: number = 50): Promise<any[]> {
     const query = `
       SELECT 
-        qa.answered_at,
+        qa.created_at,
         qa.is_correct,
-        qa.player_rating_before,
-        qa.player_rating_after,
-        qa.player_rating_after - qa.player_rating_before as rating_change,
-        q.question_type,
-        q.category_id
+        qa.player_elo_before,
+        qa.player_elo_after,
+        qa.player_elo_after - qa.player_elo_before as rating_change,
+        COALESCE(qc.category_id, 0) as category_id
       FROM question_attempts qa
+      JOIN quiz_sessions qs ON qa.session_id = qs.id
       JOIN questions q ON qa.question_id = q.id
-      WHERE qa.user_id = $1
-      ORDER BY qa.answered_at DESC
+      LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
+      WHERE qs.user_id = $1
+      ORDER BY qa.created_at DESC
       LIMIT $2
     `;
     

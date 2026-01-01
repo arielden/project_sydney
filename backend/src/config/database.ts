@@ -30,7 +30,7 @@ if (useUnixSocket) {
     host: socketPath,
     database: process.env.DB_NAME || 'sydney_db',
     user: process.env.DB_USER || 'sydney_user',
-    password: process.env.DB_PASSWORD || 'Sydney2024SecurePass!',
+    password: process.env.DB_PASSWORD,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
@@ -52,7 +52,7 @@ if (useUnixSocket) {
     port: parseInt(process.env.DB_PORT || '5432'),
     database: process.env.DB_NAME || 'sydney_db',
     user: process.env.DB_USER || 'sydney_user',
-    password: process.env.DB_PASSWORD || 'Sydney2024SecurePass!',
+    password: process.env.DB_PASSWORD,
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
@@ -257,7 +257,7 @@ export async function dropDatabase(): Promise<boolean> {
         FROM pg_stat_activity 
         WHERE datname = $1 AND pid <> pg_backend_pid()
       `, [dbName]);
-    } catch (error) {
+    } catch {
       console.log('⚠️  Could not terminate connections (database may not exist)');
     }
     

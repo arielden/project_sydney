@@ -61,7 +61,7 @@ const Card = ({
 }: CardProps) => {
   const styles = variantStyles[variant];
 
-  const CardContent = () => (
+  const content = (
     <div className={`rounded-lg border transition-all duration-300 h-full flex flex-col overflow-hidden ${styles.container} ${className || ''}`.trim()} {...props}>
       {/* Icon Section */}
       <div className="p-6 flex items-center justify-between mb-2">
@@ -92,19 +92,19 @@ const Card = ({
     if (isExternal) {
       return (
         <a href={link} className="group block h-full" target="_blank" rel="noopener noreferrer">
-          <CardContent />
+          {content}
         </a>
       );
     }
 
     return (
       <Link to={link} className="group block h-full">
-        <CardContent />
+        {content}
       </Link>
     );
   }
 
-  return <CardContent />;
+  return content;
 };
 
 export default Card;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuiz } from '../contexts/QuizContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useQuiz } from '../hooks/useQuiz';
+import { useAuth } from '../hooks/useAuth';
 import { 
   Trophy, 
   Target, 

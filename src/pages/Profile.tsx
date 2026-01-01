@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { authService } from '../services/authService';
 import { User, Mail, Calendar } from 'lucide-react';
 

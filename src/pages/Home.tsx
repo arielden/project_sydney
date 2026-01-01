@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Users, TrendingUp, Target, ArrowRight, Zap, Brain, Award } from 'lucide-react';
 import Card from '../components/common/Card';
 import { Button } from '../components/common/Button';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Home() {
   const { isAuthenticated } = useAuth();
@@ -108,7 +108,7 @@ export default function Home() {
               {/* Feature 2: Track Progress */}
               <Card
                 title="Real-Time Analytics"
-                description="Monitor your performance across all 22 micro-skill ratings. See detailed breakdowns of your strengths and areas to improve."
+                description="Monitor your performance across the micro-skill ratings. See detailed breakdowns of your strengths and areas to improve."
                 icon={TrendingUp}
                 variant="default"
                 link="/dashboard"
@@ -163,8 +163,8 @@ export default function Home() {
                 <p className="text-lg text-sky-blue-light">Practice Questions</p>
               </div>
               <div>
-                <div className="text-4xl font-bold text-yellow-accent mb-2">22</div>
-                <p className="text-lg text-sky-blue-light">Micro-Skill Ratings</p>
+                <div className="text-4xl font-bold text-yellow-accent mb-2">3</div>
+                <p className="text-lg text-sky-blue-light">Test Types</p>
               </div>
             </div>
           </div>

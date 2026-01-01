@@ -245,7 +245,8 @@ async function handleLogin(req: AuthenticatedRequest, res: Response): Promise<vo
     await updateLastLogin(user.id);
 
     // Remove password hash from response
-    const { password_hash, ...userResponse } = user;
+    const userResponse = { ...user };
+    delete (userResponse as any).password_hash;
 
     res.status(200).json(formatSuccessResponse(
       'Login successful',

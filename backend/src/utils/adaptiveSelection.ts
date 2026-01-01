@@ -75,14 +75,14 @@ class AdaptiveSelectionService {
       }
 
       // Build the main query
-      let whereConditions = ['q.id IS NOT NULL'];
-      let queryParams: any[] = [];
-      let paramIndex = 1;
+      const whereConditions = ['q.id IS NOT NULL'];
+      const queryParams: any[] = [userRating];
+      let paramIndex = 2;
 
       // Exclude already attempted questions
       if (excludedQuestionIds.length > 0) {
-        whereConditions.push(`q.id NOT IN (${excludedQuestionIds.map(() => `$${paramIndex++}`).join(', ')})`);
-        queryParams.push(...excludedQuestionIds);
+        whereConditions.push(`q.id != ALL($${paramIndex++})`);
+        queryParams.push(excludedQuestionIds);
       }
 
       // Apply target difficulty if specified
@@ -127,10 +127,9 @@ class AdaptiveSelectionService {
               END
             ELSE 0.8
           END as appropriateness_score
-        FROM questions q
+        FROM questions q TABLESAMPLE BERNOULLI(10.0)
         LEFT JOIN question_categories qc ON q.id = qc.question_id AND qc.is_primary = true
         WHERE ${whereConditions.join(' AND ')}
-        TABLESAMPLE BERNOULLI(10.0)  -- Sample 10% of matching questions
         LIMIT ${candidateCount * 2}   -- Get more candidates than needed for better selection
       `;
 

@@ -4,11 +4,12 @@ import { PoolClient } from 'pg';
 export interface QuizSession {
   id: string;
   user_id: string;
-  session_type: 'practice' | 'diagnostic' | 'timed';
+  session_type: 'practice' | 'diagnostic' | 'timed' | 'quick-test';
   start_time: Date;
   end_time?: Date;
   is_paused: boolean;
-  pause_time?: Date;
+  paused_at?: Date;
+  resumed_at?: Date;
   total_pause_duration: number; // seconds
   status: 'active' | 'paused' | 'completed' | 'abandoned';
   total_time_spent?: number; // seconds
@@ -17,7 +18,7 @@ export interface QuizSession {
 
 export interface CreateSessionData {
   userId: string;
-  sessionType: 'practice' | 'diagnostic' | 'timed';
+  sessionType: 'practice' | 'diagnostic' | 'timed' | 'quick-test';
 }
 
 class QuizSessionModel {
@@ -27,14 +28,22 @@ class QuizSessionModel {
   static async createSession(data: CreateSessionData): Promise<QuizSession> {
     const { userId, sessionType } = data;
     
-    const query = `
-      INSERT INTO quiz_sessions (user_id, session_type, start_time, is_paused, total_pause_duration, status)
-      VALUES ($1, $2, NOW(), false, 0, 'active')
-      RETURNING *
+    const insertQuery = `
+      INSERT INTO quiz_sessions (user_id, session_type, start_time, is_paused, status)
+      VALUES ($1, $2, NOW(), false, 'active')
     `;
     
     try {
-      const result = await pool.query(query, [userId, sessionType]);
+      await pool.query(insertQuery, [userId, sessionType]);
+      
+      // Get the inserted session
+      const selectQuery = `
+        SELECT * FROM quiz_sessions 
+        WHERE user_id = $1 AND session_type = $2 
+        ORDER BY created_at DESC 
+        LIMIT 1
+      `;
+      const result = await pool.query(selectQuery, [userId, sessionType]);
       return result.rows[0];
     } catch (error) {
       console.error('Error creating quiz session:', error);
@@ -66,7 +75,7 @@ class QuizSessionModel {
   static async pauseSession(sessionId: string): Promise<QuizSession> {
     const query = `
       UPDATE quiz_sessions 
-      SET is_paused = true, pause_time = NOW(), status = 'paused'
+      SET is_paused = true, paused_at = NOW(), status = 'paused'
       WHERE id = $1 AND status = 'active'
       RETURNING *
     `;
@@ -107,7 +116,7 @@ class QuizSessionModel {
       }
       
       // Calculate pause duration
-      const pauseStart = new Date(session.pause_time);
+      const pauseStart = new Date(session.paused_at);
       const now = new Date();
       const pauseDurationSeconds = Math.floor((now.getTime() - pauseStart.getTime()) / 1000);
       
@@ -115,7 +124,7 @@ class QuizSessionModel {
       const updateQuery = `
         UPDATE quiz_sessions 
         SET is_paused = false, 
-            pause_time = NULL,
+            resumed_at = NOW(),
             status = 'active',
             total_pause_duration = total_pause_duration + $1
         WHERE id = $2
@@ -164,8 +173,8 @@ class QuizSessionModel {
       let totalPauseDuration = session.total_pause_duration;
       
       // If session is currently paused, add final pause duration
-      if (session.is_paused && session.pause_time) {
-        const pauseStart = new Date(session.pause_time);
+      if (session.is_paused && session.paused_at) {
+        const pauseStart = new Date(session.paused_at);
         const now = new Date();
         const finalPauseDuration = Math.floor((now.getTime() - pauseStart.getTime()) / 1000);
         totalPauseDuration += finalPauseDuration;
@@ -177,7 +186,6 @@ class QuizSessionModel {
         SET status = 'completed',
             end_time = NOW(),
             is_paused = false,
-            pause_time = NULL,
             total_pause_duration = $1
         WHERE id = $2
         RETURNING *
