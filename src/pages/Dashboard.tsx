@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Award, BarChart3, Calendar, Zap, TrendingUp } from 'lucide-react';
+import { ResponsiveRadar } from '@nivo/radar';
 import { eloRatingService } from '../services/eloRatingService';
 import type { UserELORating, MicroRating } from '../services/eloRatingService';
 import { ELO_RATING_LEVELS } from '../types';
@@ -20,27 +21,38 @@ export default function Dashboard() {
       return;
     }
     
-    setError(null);
-    Promise.allSettled([
-      eloRatingService.getOverallRating(),
-      eloRatingService.getMicroRatings(),
-    ]).then(([overallResult, microResult]) => {
-      if (overallResult.status === 'fulfilled') {
-        setOverallRating(overallResult.value);
-      } else {
-        console.error('Failed to fetch overall rating:', overallResult.reason);
-        setError('Failed to load some dashboard data. Please try again later.');
-      }
-
-      if (microResult.status === 'fulfilled') {
-        setMicroRatings(microResult.value);
-      } else {
-        console.error('Failed to fetch micro ratings:', microResult.reason);
-        setError('Failed to load some dashboard data. Please try again later.');
-      }
+    const fetchData = async () => {
+      setError(null);
+      setIsLoading(true);
       
-      setIsLoading(false);
-    });
+      Promise.allSettled([
+        eloRatingService.getOverallRating(),
+        eloRatingService.getMicroRatings(),
+      ]).then(([overallResult, microResult]) => {
+        if (overallResult.status === 'fulfilled') {
+          setOverallRating(overallResult.value);
+        } else {
+          console.error('Failed to fetch overall rating:', overallResult.reason);
+          setError('Failed to load some dashboard data. Please try again later.');
+        }
+
+        if (microResult.status === 'fulfilled') {
+          console.log('Micro ratings loaded:', microResult.value);
+          console.log('Number of ratings:', microResult.value.length);
+          microResult.value.forEach((r: any, i: number) => {
+            console.log(`[${i}] ${r.category_name} (ID: ${r.category_id}): ${r.elo_rating}`);
+          });
+          setMicroRatings(microResult.value);
+        } else {
+          console.error('Failed to fetch micro ratings:', microResult.reason);
+          setError('Failed to load some dashboard data. Please try again later.');
+        }
+        
+        setIsLoading(false);
+      });
+    };
+    
+    fetchData();
   }, [user?.id]);
 
   const normalizedRatings = useMemo(() => {
@@ -54,6 +66,40 @@ export default function Dashboard() {
       lastAttempt: rating.last_attempt_date ?? null,
     }));
   }, [microRatings]);
+
+  // Simplify grouping - just return all ratings
+  const groupCategoriesByType = useMemo(() => {
+    console.log('Normalizing ratings:', normalizedRatings.length);
+    if (normalizedRatings.length === 0) return [];
+    return [{ title: 'Your Category Performance', data: normalizedRatings }];
+  }, [normalizedRatings]);
+
+  const formatRadarData = (ratings: typeof normalizedRatings) => {
+    return ratings.map(rating => ({
+      category: rating.name.substring(0, 12),
+      'Current Rating': Math.min(800, rating.rating),
+      'Target (700)': 700,
+      fullData: rating,
+    }));
+  };
+
+  const getTopCategories = (ratings: typeof normalizedRatings, count: number = 3) => {
+    return [...ratings]
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, count);
+  };
+
+  const getWeakestCategories = (ratings: typeof normalizedRatings, count: number = 3) => {
+    return [...ratings]
+      .sort((a, b) => a.rating - b.rating)
+      .slice(0, count);
+  };
+
+  const getOverallProgress = (ratings: typeof normalizedRatings) => {
+    if (ratings.length === 0) return 0;
+    const avg = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+    return Math.round(avg);
+  };
 
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return 'N/A';
@@ -180,61 +226,122 @@ export default function Dashboard() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-sky-blue-light bg-gray-light">
-                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Category</th>
-                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Rating</th>
-                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Level</th>
-                    <th className="text-center py-4 px-4 text-sm font-semibold text-navy-dark">Attempts</th>
-                    <th className="text-center py-4 px-4 text-sm font-semibold text-navy-dark">Success Rate</th>
-                    <th className="text-left py-4 px-4 text-sm font-semibold text-navy-dark">Last Attempt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {normalizedRatings.map((rating, idx) => {
-                    const categoryLevel = getRatingLevel(rating.rating);
+            <div className="space-y-8">
+              {groupCategoriesByType.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No category data available. Complete a quiz to see your ratings.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Overall Progress */}
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold">Overall Progress</h3>
+                      <span className="text-3xl font-bold">{getOverallProgress(normalizedRatings)}</span>
+                    </div>
+                    <div className="w-full bg-blue-900 rounded-full h-3">
+                      <div 
+                        className="bg-yellow-accent h-3 rounded-full" 
+                        style={{ width: `${Math.min(100, (getOverallProgress(normalizedRatings) / 800) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-blue-100 text-sm mt-2">Target: 700</p>
+                  </div>
+
+                  {/* Enhanced Radar Chart */}
+                  {groupCategoriesByType.map((group, idx) => {
+                    const radarData = formatRadarData(group.data);
+                    
                     return (
-                      <tr 
-                        key={rating.id} 
-                        className={`border-b border-gray-100 hover:bg-sky-blue-light transition-colors ${
-                          idx % 2 === 0 ? 'bg-white' : 'bg-gray-light bg-opacity-30'
-                        }`}
-                      >
-                        <td className="py-4 px-4 text-sm font-medium text-navy-dark">{rating.name}</td>
-                        <td className="py-4 px-4 text-sm">
-                          <span className="font-bold text-lg" style={{ color: categoryLevel.color }}>
-                            {rating.rating}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-sm">
-                          <span 
-                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
-                            style={{ backgroundColor: `${categoryLevel.color}15`, color: categoryLevel.color }}
-                          >
-                            {categoryLevel.label}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-sm text-center text-gray-900 font-medium">{rating.attempts}</td>
-                        <td className="py-4 px-4 text-sm text-center font-medium">
-                          {rating.successRate !== null ? (
-                            <span className="inline-flex items-center gap-1 text-green-success">
-                              <TrendingUp size={16} />
-                              {(rating.successRate * 100).toFixed(1)}%
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-sm text-gray-600">
-                          {rating.lastAttempt ? formatDate(rating.lastAttempt) : '-'}
-                        </td>
-                      </tr>
+                      <div key={idx} className="space-y-6">
+                        <h3 className="text-xl font-semibold text-navy-dark">{group.title}</h3>
+                        <div style={{ width: '100%', height: '600px' }}>
+                          <ResponsiveRadar
+                            data={radarData}
+                            keys={['Current Rating', 'Target (700)']}
+                            indexBy="category"
+                            maxValue={800}
+                            margin={{ top: 80, right: 100, bottom: 80, left: 100 }}
+                            curve="catmullRomClosed"
+                            borderWidth={3}
+                            borderColor={{ from: 'color', modifiers: [['darker', 0.2]] }}
+                            gridLevels={8}
+                            gridShape="circular"
+                            gridLabelOffset={20}
+                            enableDots={true}
+                            dotSize={10}
+                            dotColor="#fff"
+                            dotBorderWidth={3}
+                            dotBorderColor={{ from: 'color' }}
+                            enableDotLabel={false}
+                            colors={['#086CB4', '#FFD340']}
+                            fillOpacity={0.15}
+                            blendMode="normal"
+                            animate={true}
+                            motionConfig="gentle"
+                            legends={[
+                              {
+                                anchor: 'top',
+                                direction: 'row',
+                                translateY: -50,
+                                itemWidth: 120,
+                                itemHeight: 20,
+                                symbolSize: 16,
+                                symbolShape: 'circle'
+                              }
+                            ]}
+                            theme={{
+                              axis: {
+                                ticks: {
+                                  text: {
+                                    fontSize: 11,
+                                    fontWeight: 600
+                                  }
+                                }
+                              },
+                              grid: {
+                                line: {
+                                  stroke: '#ddd',
+                                  strokeWidth: 1
+                                }
+                              }
+                            }}
+                          />
+                        </div>
+
+                        {/* Top & Weakest Categories */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Top 3 Strongest */}
+                          <div className="bg-green-50 rounded-xl border-2 border-green-200 p-6">
+                            <h4 className="font-semibold text-green-900 mb-4">💪 Top 3 Strongest</h4>
+                            <div className="space-y-3">
+                              {getTopCategories(group.data, 3).map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-700">{cat.name}</span>
+                                  <span className="font-bold text-green-600">{cat.rating}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Top 3 Weakest */}
+                          <div className="bg-red-50 rounded-xl border-2 border-red-200 p-6">
+                            <h4 className="font-semibold text-red-900 mb-4">📌 Top 3 to Improve</h4>
+                            <div className="space-y-3">
+                              {getWeakestCategories(group.data, 3).map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between">
+                                  <span className="text-sm font-medium text-gray-700">{cat.name}</span>
+                                  <span className="font-bold text-red-600">{cat.rating}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </>
+              )}
             </div>
           )}
         </div>

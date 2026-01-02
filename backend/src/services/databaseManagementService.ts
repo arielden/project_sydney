@@ -456,7 +456,9 @@ class DatabaseManagementService {
 
       // Drop all existing tables if requested
       if (dropTablesFirst) {
-        console.log('Dropping all existing tables before executing schema...');
+        if (process.env.DEBUG) {
+          console.log('Dropping all existing tables before executing schema...');
+        }
 
         try {
           // First, drop all foreign key constraints to avoid dependency issues

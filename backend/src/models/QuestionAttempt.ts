@@ -49,7 +49,9 @@ class QuestionAttemptModel {
   static async recordAttempt(data: CreateAttemptData): Promise<QuestionAttempt> {
     const { sessionId, questionId, userId, userAnswer, timeSpent, client: providedClient } = data;
     
-    console.log('🎯 Recording attempt (simplified):', { sessionId, questionId, userId, userAnswer, timeSpent });
+    if (process.env.DEBUG) {
+      console.log('🎯 Recording attempt:', { sessionId, questionId, userId, userAnswer, timeSpent });
+    }
     
     const client: PoolClient = providedClient || await pool.connect();
     const shouldReleaseClient = !providedClient;
@@ -78,20 +80,21 @@ class QuestionAttemptModel {
       const question = questionResult.rows[0];
       const isCorrect = question.correct_answer.toLowerCase() === userAnswer.toLowerCase();
       
-      console.log('📚 Question checked:', {
-        questionId,
-        correctAnswer: question.correct_answer,
-        userAnswer,
-        isCorrect,
-        categoryId: question.category_id
-      });
+      if (process.env.DEBUG) {
+        console.log('📚 Question checked:', {
+          questionId,
+          isCorrect,
+          categoryId: question.category_id
+        });
+      }
       
       // Initialize micro ratings for new users
       try {
-        console.log('🎯 Ensuring micro ratings initialized for user:', userId);
         await MicroRatingModel.initializeUserMicroRatings(userId);
       } catch (initError) {
-        console.log('ℹ️ Micro ratings already initialized or failed:', initError instanceof Error ? initError.message : 'Unknown error');
+        if (process.env.DEBUG) {
+          console.log('ℹ️ Micro ratings initialization:', initError instanceof Error ? initError.message : 'Unknown error');
+        }
       }
       
       // Get current player rating and stats (with caching)
@@ -128,7 +131,9 @@ class QuestionAttemptModel {
             });
           }
         } catch (playerError) {
-          console.log('⚠️ Could not fetch player rating, using defaults:', playerError instanceof Error ? playerError.message : 'Unknown error');
+          if (process.env.DEBUG) {
+            console.log('⚠️ Could not fetch player rating, using defaults:', playerError instanceof Error ? playerError.message : 'Unknown error');
+          }
         }
       }
       
@@ -158,17 +163,19 @@ class QuestionAttemptModel {
         eloResult.expectedScore
       );
       
-      console.log('🧮 ELO Calculation Results:', {
-        playerRatingBefore,
-        playerRatingAfter: eloResult.playerNewRating,
-        playerEloChange: eloResult.playerEloChange,
-        questionRatingBefore,
-        questionRatingAfter: eloResult.questionNewRating,
-        questionEloChange: eloResult.questionEloChange,
-        expectedScore: eloResult.expectedScore,
-        actualScore: eloResult.actualScore,
-        playerConfidence
-      });
+      if (process.env.DEBUG) {
+        console.log('🧮 ELO Calculation Results:', {
+          playerRatingBefore,
+          playerRatingAfter: eloResult.playerNewRating,
+          playerEloChange: eloResult.playerEloChange,
+          questionRatingBefore,
+          questionRatingAfter: eloResult.questionNewRating,
+          questionEloChange: eloResult.questionEloChange,
+          expectedScore: eloResult.expectedScore,
+          actualScore: eloResult.actualScore,
+          playerConfidence
+        });
+      }
       
       // Insert ELO-calculated attempt record
       const attemptQuery = `
@@ -236,7 +243,6 @@ class QuestionAttemptModel {
       `, [eloResult.questionNewRating, isCorrect ? 1 : 0, questionId]);
       
       await client.query('COMMIT');
-      console.log('✅ Attempt recorded successfully');
       
       // Update micro ratings for ALL categories linked to this question (not just primary)
       try {
@@ -248,21 +254,24 @@ class QuestionAttemptModel {
         const categoriesResult = await client.query(categoriesQuery, [questionId]);
         
         if (categoriesResult.rows.length > 0) {
-          console.log(`🎯 Updating micro ratings for ${categoriesResult.rows.length} categories`);
+          if (process.env.DEBUG) {
+            console.log(`🎯 Updating micro ratings for ${categoriesResult.rows.length} categories`);
+          }
           
           for (const row of categoriesResult.rows) {
             const categoryId = row.category_id;
             try {
-              console.log('📊 Updating micro rating for category:', categoryId);
               await MicroRatingModel.recordAttempt(userId, categoryId, isCorrect);
-              console.log('✅ Micro rating updated for category:', categoryId);
+              if (process.env.DEBUG) {
+                console.log('📊 Micro rating updated for category:', categoryId);
+              }
             } catch (microError) {
               console.error(`⚠️ Failed to update micro rating for category ${categoryId}:`, 
                 microError instanceof Error ? microError.message : 'Unknown error');
               // Don't throw error, just log it - micro rating is supplementary
             }
           }
-        } else {
+        } else if (process.env.DEBUG) {
           console.log('ℹ️ No categories linked to question, micro ratings not updated');
         }
       } catch (categoriesError) {

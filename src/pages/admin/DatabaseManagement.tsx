@@ -29,7 +29,11 @@ const DatabaseManagement: React.FC = () => {
     'question_attempts',
     'quiz_sessions',
     'player_ratings',
-    'micro_ratings'
+    'micro_ratings',
+    'admin_activity_log',
+    'quiz_questions',
+    'user_question_history',
+    'category_practice_priority'
   ];
 
   const handleTableSelection = (tableName: string) => {

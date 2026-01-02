@@ -1,5 +1,16 @@
 
-INSERT INTO questions (question_text, options, correct_answer, explanation, elo_rating) VALUES
+-- ============================================================================
+-- Seed: Development Questions (109 SAT Math Practice Questions)
+-- ============================================================================
+-- This file contains sample questions for development and testing
+-- Note: Only inserts if questions table is empty to avoid duplicates
+-- ============================================================================
+
+-- Only seed if table is empty
+DO $$
+BEGIN
+    IF (SELECT COUNT(*) FROM questions) = 0 THEN
+        INSERT INTO questions (question_text, options, correct_answer, explanation, elo_rating) VALUES
 
 -- Easy Level Questions (200-400 range)
 ('If 3x + 5 = 14, what is the value of x?', '[{"id": "A", "text": "2"}, {"id": "B", "text": "3"}, {"id": "C", "text": "4"}, {"id": "D", "text": "5"}]', 'B', 'Solving for x: 3x + 5 = 14, so 3x = 9, therefore x = 3.', 350),
@@ -223,7 +234,9 @@ INSERT INTO questions (question_text, options, correct_answer, explanation, elo_
 ('Solve: 9x = 81', '[{"id": "A", "text": "8"}, {"id": "B", "text": "9"}, {"id": "C", "text": "10"}, {"id": "D", "text": "11"}]', 'B', '9x = 81, so x = 9.', 320),
 
 ('What is 45% of 200?', '[{"id": "A", "text": "85"}, {"id": "B", "text": "90"}, {"id": "C", "text": "95"}, {"id": "D", "text": "100"}]', 'B', '45% of 200 = 0.45 × 200 = 90.', 340);
-
+    END IF;
+END $$;
 
 -- Verify insertion
+SELECT 'Development Questions Seeded' as status, COUNT(*) as count FROM questions;
 SELECT 'Development Questions Seeded' as status, COUNT(*) as count FROM questions;

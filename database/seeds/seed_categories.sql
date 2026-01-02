@@ -58,7 +58,8 @@ INSERT INTO categories (name, description) VALUES
 ('Systems of Equations', 'Solving systems of linear equations using substitution, elimination, and graphing'),
 
 -- 18. Single Variable Equations
-('Single Variable Equations', 'Solving single variable equations, inequalities, and absolute value equations');
+('Single Variable Equations', 'Solving single variable equations, inequalities, and absolute value equations')
+ON CONFLICT (name) DO NOTHING;
 
 -- Verify insertion
 SELECT 'Categories Seeded' as status, COUNT(*) as count FROM categories;

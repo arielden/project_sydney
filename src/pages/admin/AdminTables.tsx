@@ -43,7 +43,10 @@ const AdminTables: React.FC = () => {
       quiz_sessions: '📋',
       player_ratings: '⭐',
       micro_ratings: '📊',
-      admin_activity_log: '📜'
+      admin_activity_log: '📜',
+      quiz_questions: '🎯',
+      user_question_history: '📚',
+      category_practice_priority: '⚖️'
     };
     return icons[tableName] || '📁';
   };
@@ -55,10 +58,13 @@ const AdminTables: React.FC = () => {
       questions: 'Quiz questions with difficulty levels',
       question_categories: 'Many-to-many links between questions and categories',
       question_attempts: 'Individual question answer attempts',
-      quiz_sessions: 'Quiz session records and scores',
+      quiz_sessions: 'Quiz session records and scores with performance metrics',
       player_ratings: 'Overall player ELO ratings',
-      micro_ratings: 'Category-specific micro ratings',
-      admin_activity_log: 'Admin action audit trail'
+      micro_ratings: 'Category-specific ELO ratings and performance metrics',
+      admin_activity_log: 'Admin action audit trail',
+      quiz_questions: 'Adaptive quiz session question assignments',
+      user_question_history: 'User question usage tracking and mastery status',
+      category_practice_priority: 'Dynamic weights and priority for category-based question selection'
     };
     return descriptions[tableName] || 'Database table';
   };

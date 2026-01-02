@@ -14,7 +14,10 @@ const MANAGEABLE_TABLES = [
   'quiz_sessions',
   'player_ratings',
   'micro_ratings',
-  'admin_activity_log'
+  'admin_activity_log',
+  'quiz_questions',
+  'user_question_history',
+  'category_practice_priority'
 ];
 
 /**

@@ -46,7 +46,9 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-sidney_db}
       - FRONTEND_URL=http://localhost:5173
-    command: sh -c "npm install && sh ./init-db.sh && npm run dev"
+      - NPM_CONFIG_AUDIT=false
+      - NPM_CONFIG_LOGLEVEL=error
+    command: sh -c "npm install --silent && sh ./init-db.sh && npm run dev"
     networks:
       - sidney_network
     restart: unless-stopped
@@ -72,7 +74,7 @@ services:
       - sidney_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5

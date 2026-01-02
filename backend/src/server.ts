@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { testConnection } from './config/database';
 import authRoutes from './routes/auth';
 import quizRoutes from './routes/quiz';
+import quizAdaptiveRouter from './routes/quizAdaptive';
 import ratingsRoutes from './routes/ratings';
 import adminRoutes from './routes/admin';
 import questionTypesRoutes from './routes/questionTypes';
@@ -52,6 +53,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/quiz', quizAdaptiveRouter);
 app.use('/api/ratings', ratingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/question-types', questionTypesRoutes);

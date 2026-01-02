@@ -471,17 +471,16 @@ class MicroRatingModel {
         WHERE user_id = $3 AND ${categoryColumn} = $4
       `, [newElo, newConfidence, userId, categoryId]);
       
-      console.log('📊 Micro rating updated:', {
-        userId,
-        categoryId,
-        eloRatingBefore: currentElo,
-        eloRatingAfter: newElo,
-        eloDelta: newElo - currentElo,
-        isCorrect,
-        confidenceBefore: currentConfidence,
-        confidenceAfter: newConfidence,
-        newAttemptCount: currentAttempts + 1
-      });
+      if (process.env.DEBUG) {
+        console.log('📊 Micro rating updated:', {
+          userId,
+          categoryId,
+          eloRatingBefore: currentElo,
+          eloRatingAfter: newElo,
+          isCorrect,
+          attemptCount: currentAttempts + 1
+        });
+      }
       
     } catch (error) {
       console.error('Error recording attempt for category:', error);

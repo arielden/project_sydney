@@ -58,7 +58,6 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
 
     const { sessionType, forceNew } = req.body;
     const userId = req.user?.id;
-    console.log('Starting quiz for user:', userId, 'sessionType:', sessionType);
 
     // If forceNew is true, abandon any existing sessions
     if (forceNew) {
@@ -69,12 +68,10 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
     }
 
     // Create new session
-    console.log('Creating session...');
     const session = await QuizSessionModel.createSession({
       userId: userId!,
       sessionType: sessionType
     });
-    console.log('Session created:', session.id);
 
     // Return session info
     res.status(201).json(formatSuccessResponse('Quiz session started successfully', {
@@ -88,7 +85,6 @@ async function handleStartQuiz(req: AuthenticatedRequest, res: Response): Promis
         created_at: session.created_at
       }
     }));
-
   } catch (error) {
     console.error('Error starting quiz:', error);
     res.status(500).json(formatErrorResponse('Failed to start quiz session'));

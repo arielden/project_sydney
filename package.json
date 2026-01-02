@@ -22,6 +22,8 @@
     "simulate:elo:staged": "node scripts/simulate-elo-evolution.cjs 1000 500 false"
   },
   "dependencies": {
+    "@nivo/core": "^0.99.0",
+    "@nivo/radar": "^0.99.0",
     "axios": "^1.13.2",
     "lucide-react": "^0.555.0",
     "react": "^19.2.0",

@@ -2,9 +2,6 @@
 -- Sydney SAT Learning Platform - Database Schema
 -- ============================================================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
-
 -- ============================================================================
 -- CUSTOM TYPES
 -- ============================================================================
@@ -137,12 +134,18 @@ CREATE TABLE public.quiz_sessions (
     end_time TIMESTAMP WITH TIME ZONE,
     paused_at TIMESTAMP WITH TIME ZONE,
     resumed_at TIMESTAMP WITH TIME ZONE,
-    total_time_spent INTEGER DEFAULT 0, -- in seconds
-    total_pause_duration INTEGER DEFAULT 0, -- in seconds
+    total_time_spent INTEGER DEFAULT 0,
+    total_pause_duration INTEGER DEFAULT 0,
     is_paused BOOLEAN DEFAULT false,
     score_percentage DECIMAL(5,2),
     total_questions INTEGER DEFAULT 0,
     correct_answers INTEGER DEFAULT 0,
+    incorrect_answers INTEGER DEFAULT 0,
+    skipped_answers INTEGER DEFAULT 0,
+    accuracy_percentage DECIMAL(5,2) DEFAULT 0.00,
+    avg_time_per_question DECIMAL(6,2) DEFAULT 0.00,
+    elo_change INTEGER DEFAULT 0,
+    questions_json JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -177,6 +180,77 @@ CREATE TABLE public.micro_ratings (
     success_rate DECIMAL(5,4) DEFAULT 0,
     confidence DECIMAL(3,2) DEFAULT 0.5,
     last_attempt TIMESTAMP WITH TIME ZONE,
+    recent_accuracy DECIMAL(5,2) DEFAULT 0.00,
+    trend VARCHAR(20) DEFAULT 'stable' CHECK (trend IN ('improving', 'declining', 'stable')),
+    questions_mastered INTEGER DEFAULT 0,
+    questions_available INTEGER DEFAULT 0,
+    priority_score DECIMAL(5,2) DEFAULT 0.00,
+    last_practice_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, category_id)
+);
+
+-- Admin activity log table (audit trail for admin actions)
+DROP TABLE IF EXISTS public.admin_activity_log CASCADE;
+CREATE TABLE public.admin_activity_log (
+    id SERIAL PRIMARY KEY,
+    admin_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(50) NOT NULL,
+    table_name VARCHAR(100),
+    record_id INTEGER,
+    details JSONB,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Quiz questions junction table (from migration 008)
+DROP TABLE IF EXISTS public.quiz_questions CASCADE;
+CREATE TABLE public.quiz_questions (
+    id SERIAL PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+    question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    question_order INTEGER NOT NULL CHECK (question_order > 0),
+    category_id INTEGER REFERENCES categories(id),
+    question_elo_at_selection INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(session_id, question_id),
+    UNIQUE(session_id, question_order)
+);
+
+-- User question history table (from migration 010)
+DROP TABLE IF EXISTS public.user_question_history CASCADE;
+CREATE TABLE public.user_question_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    category_id INTEGER REFERENCES categories(id),
+    times_seen INTEGER DEFAULT 0,
+    times_correct INTEGER DEFAULT 0,
+    times_incorrect INTEGER DEFAULT 0,
+    first_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_seen_at TIMESTAMP WITH TIME ZONE,
+    last_session_id INTEGER REFERENCES quiz_sessions(id),
+    is_retired BOOLEAN DEFAULT false,
+    retirement_date TIMESTAMP WITH TIME ZONE,
+    queue_priority INTEGER DEFAULT 0 CHECK (queue_priority >= 0 AND queue_priority <= 3),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, question_id)
+);
+
+-- Category practice priority table (from migration 012)
+DROP TABLE IF EXISTS public.category_practice_priority CASCADE;
+CREATE TABLE public.category_practice_priority (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    selection_weight DECIMAL(5,2) DEFAULT 1.00,
+    questions_needed INTEGER DEFAULT 0,
+    elo_deficit INTEGER DEFAULT 0,
+    accuracy_deficit DECIMAL(5,2) DEFAULT 0.00,
+    last_calculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    next_practice_recommended TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, category_id)
@@ -193,9 +267,30 @@ CREATE INDEX idx_questions_difficulty ON questions(difficulty_rating);
 CREATE INDEX idx_player_ratings_user ON player_ratings(user_id);
 CREATE INDEX idx_quiz_sessions_user ON quiz_sessions(user_id);
 CREATE INDEX idx_quiz_sessions_status ON quiz_sessions(status);
+CREATE INDEX idx_quiz_sessions_accuracy ON quiz_sessions(accuracy_percentage);
+CREATE INDEX idx_quiz_sessions_user_accuracy ON quiz_sessions(user_id, accuracy_percentage);
+CREATE INDEX idx_quiz_sessions_elo_change ON quiz_sessions(user_id, elo_change);
+CREATE INDEX idx_quiz_sessions_questions_json ON quiz_sessions USING GIN (questions_json);
 CREATE INDEX idx_question_attempts_session ON question_attempts(session_id);
+CREATE INDEX idx_quiz_questions_session ON quiz_questions(session_id);
+CREATE INDEX idx_quiz_questions_question ON quiz_questions(question_id);
+CREATE INDEX idx_quiz_questions_category ON quiz_questions(category_id);
+CREATE INDEX idx_user_question_history_user ON user_question_history(user_id);
+CREATE INDEX idx_user_question_history_category ON user_question_history(user_id, category_id);
+CREATE INDEX idx_user_question_history_retired ON user_question_history(user_id, is_retired);
+CREATE INDEX idx_user_question_history_queue ON user_question_history(user_id, queue_priority DESC);
+CREATE INDEX idx_user_question_history_last_seen ON user_question_history(user_id, last_seen_at);
+CREATE INDEX idx_user_question_history_question ON user_question_history(question_id);
 CREATE INDEX idx_micro_ratings_user ON micro_ratings(user_id);
 CREATE INDEX idx_micro_ratings_category ON micro_ratings(category_id);
+CREATE INDEX idx_micro_ratings_priority ON micro_ratings(user_id, priority_score DESC);
+CREATE INDEX idx_micro_ratings_recent_accuracy ON micro_ratings(user_id, recent_accuracy);
+CREATE INDEX idx_micro_ratings_trend ON micro_ratings(user_id, trend);
+CREATE INDEX idx_category_priority_user_weight ON category_practice_priority(user_id, selection_weight DESC);
+CREATE INDEX idx_category_priority_user_calculated ON category_practice_priority(user_id, last_calculated_at);
+CREATE INDEX idx_category_priority_recommended ON category_practice_priority(user_id, next_practice_recommended);
+CREATE INDEX idx_admin_activity_log_admin_user ON admin_activity_log(admin_user_id);
+CREATE INDEX idx_admin_activity_log_created ON admin_activity_log(created_at);
 
 -- ============================================================================
 -- TRIGGERS
@@ -216,3 +311,5 @@ CREATE TRIGGER update_questions_updated_at BEFORE UPDATE ON questions FOR EACH R
 CREATE TRIGGER update_player_ratings_updated_at BEFORE UPDATE ON player_ratings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_quiz_sessions_updated_at BEFORE UPDATE ON quiz_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_micro_ratings_updated_at BEFORE UPDATE ON micro_ratings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_question_history_updated_at BEFORE UPDATE ON user_question_history FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_category_practice_priority_updated_at BEFORE UPDATE ON category_practice_priority FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
